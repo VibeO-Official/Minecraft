@@ -14,7 +14,7 @@
         
         #crosshair {
             position: absolute; top: 50%; left: 50%;
-            width: 8px; height: 8px; background: rgba(255, 255, 255, 0.5);
+            width: 8px; height: 8px; background: rgba(255, 255, 255, 0.6);
             border-radius: 50%; transform: translate(-50%, -50%);
             pointer-events: none; z-index: 10;
         }
@@ -55,13 +55,12 @@
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
 </head>
 <body>
 
     <div id="hud">
         Кассеты: <span id="tape-count" style="color:#ffea78; font-weight:bold;">0 / 5</span><br>
-        <span id="prompt-text" style="font-size: 13px; color: #888;">Цель: Найдите 5 кассет VHS в лабиринте</span>
+        <span id="prompt-text" style="font-size: 13px; color: #888;">Найдите 5 кассет VHS в лабиринте</span>
     </div>
 
     <div id="crosshair"></div>
@@ -72,8 +71,13 @@
 
     <div id="start-screen" class="overlay-screen">
         <h1>THE BACKROOMS</h1>
-        <p>Вы провалились сквозь реальность на Уровень 0.<br>Исследуйте бесконечный лабиринт, найдите <b>5 VHS-кассет</b> и избегайте того, кто блуждает в темноте.</p>
-        <p style="color:#888; font-size: 13px;">Управление: WASD / Стрелки — движение | Shift — бег | Мышь — обзор</p>
+        <p>Вы провалились сквозь реальность на Уровень 0.<br>Соберите <b>5 VHS-кассет</b> и избегайте монстра.</p>
+        <p style="color:#888; font-size: 13px; margin-top:15px;">
+            <b>Управление:</b><br>
+            W, A, S, D или Стрелки — Движение<br>
+            SHIFT — Бег<br>
+            МЫШЬ — Оглядываться (Кликните по экрану для захвата мыши)
+        </p>
         <button class="btn" id="start-btn">ВОЙТИ В ЗАКУЛИСЬЕ</button>
     </div>
 
@@ -84,8 +88,8 @@
     </div>
 
     <div id="win-screen" class="overlay-screen" style="display: none;">
-        <h1 style="color: #78ff78; text-shadow: 0 0 10px #00ff00;">ВЫ ВЫБРАЛИСЬ</h1>
-        <p>Все 5 кассет собраны. Вы смогли найти выход из бесконечных коридоров!</p>
+        <h1 style="color: #78ff78; text-shadow: 0 0 10px #00ff00;">ВЫ ВЫБРАЛИСЬ!</h1>
+        <p>Все 5 кассет собраны. Вы нашли выход из Закулисья!</p>
         <button class="btn" onclick="location.reload()">ИГРАТЬ СНОВА</button>
     </div>
 
@@ -96,86 +100,51 @@
     <div id="game-container"></div>
 
     <script>
-        // --- 1. УЛУЧШЕННЫЕ РЕАЛИСТИЧНЫЕ ТЕКСТУРЫ ---
+        // --- 1. ГЕНЕРАЦИЯ ТЕКСТУР В ВЫСОКОМ КАЧЕСТВЕ ---
         function createTexture(type) {
             const canvas = document.createElement('canvas');
             canvas.width = 1024; canvas.height = 1024;
             const ctx = canvas.getContext('2d');
 
             if (type === 'wall') {
-                // Старые монотонные жёлтые обои с паттерном ромбов и грязи
                 ctx.fillStyle = '#b39b3b'; ctx.fillRect(0, 0, 1024, 1024);
-                
-                // Текстурный узор
-                ctx.strokeStyle = '#9c842e';
-                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#9c842e'; ctx.lineWidth = 3;
                 for (let x = 0; x < 1024; x += 32) {
                     for (let y = 0; y < 1024; y += 32) {
                         ctx.beginPath();
                         ctx.moveTo(x + 16, y); ctx.lineTo(x + 32, y + 16);
                         ctx.lineTo(x + 16, y + 32); ctx.lineTo(x, y + 16);
-                        ctx.closePath();
-                        ctx.stroke();
+                        ctx.closePath(); ctx.stroke();
                     }
                 }
-
-                // Потёки и грязь
-                for (let i = 0; i < 30; i++) {
-                    const gx = Math.random() * 1024;
-                    const gy = Math.random() * 1024;
-                    const grad = ctx.createRadialGradient(gx, gy, 5, gx, gy, 80 + Math.random() * 100);
-                    grad.addColorStop(0, 'rgba(40, 30, 10, 0.35)');
-                    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-                    ctx.fillStyle = grad;
-                    ctx.beginPath(); ctx.arc(gx, gy, 180, 0, Math.PI * 2); ctx.fill();
-                }
-
-                // Шум для зернистости
-                const imgData = ctx.getImageData(0, 0, 1024, 1024);
-                for (let i = 0; i < imgData.data.length; i += 4) {
-                    const noise = (Math.random() - 0.5) * 25;
-                    imgData.data[i] += noise;
-                    imgData.data[i+1] += noise;
-                    imgData.data[i+2] += noise;
-                }
-                ctx.putImageData(imgData, 0, 0);
-
-            } else if (type === 'floor') {
-                // Влажный старый ворсистый ковёр
-                ctx.fillStyle = '#3a3320'; ctx.fillRect(0, 0, 1024, 1024);
-
-                // Пятна сырости
-                for (let i = 0; i < 40; i++) {
-                    const gx = Math.random() * 1024;
-                    const gy = Math.random() * 1024;
-                    const grad = ctx.createRadialGradient(gx, gy, 10, gx, gy, 120);
-                    grad.addColorStop(0, 'rgba(15, 12, 5, 0.7)');
+                for (let i = 0; i < 25; i++) {
+                    const gx = Math.random() * 1024, gy = Math.random() * 1024;
+                    const grad = ctx.createRadialGradient(gx, gy, 5, gx, gy, 120);
+                    grad.addColorStop(0, 'rgba(35, 25, 5, 0.4)');
                     grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
                     ctx.fillStyle = grad;
                     ctx.beginPath(); ctx.arc(gx, gy, 120, 0, Math.PI * 2); ctx.fill();
                 }
-
-                // Текстура ворса
-                for (let i = 0; i < 60000; i++) {
+            } else if (type === 'floor') {
+                ctx.fillStyle = '#3a3320'; ctx.fillRect(0, 0, 1024, 1024);
+                for (let i = 0; i < 35; i++) {
+                    const gx = Math.random() * 1024, gy = Math.random() * 1024;
+                    const grad = ctx.createRadialGradient(gx, gy, 10, gx, gy, 140);
+                    grad.addColorStop(0, 'rgba(15, 12, 5, 0.75)');
+                    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                    ctx.fillStyle = grad;
+                    ctx.beginPath(); ctx.arc(gx, gy, 140, 0, Math.PI * 2); ctx.fill();
+                }
+                for (let i = 0; i < 50000; i++) {
                     ctx.fillStyle = Math.random() > 0.5 ? '#2b2516' : '#4a422d';
                     ctx.fillRect(Math.random() * 1024, Math.random() * 1024, 2, 2);
                 }
-
             } else if (type === 'ceiling') {
-                // Потолочная плитка с решеткой и следами воды
                 ctx.fillStyle = '#b8b495'; ctx.fillRect(0, 0, 1024, 1024);
-                
-                // Плиточная сетка
                 ctx.strokeStyle = '#5c5943'; ctx.lineWidth = 8;
                 for (let i = 0; i <= 1024; i += 256) {
                     ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 1024); ctx.stroke();
                     ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(1024, i); ctx.stroke();
-                }
-
-                // Мелкая пористая структура
-                for (let i = 0; i < 20000; i++) {
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-                    ctx.fillRect(Math.random() * 1024, Math.random() * 1024, 3, 3);
                 }
             }
 
@@ -184,19 +153,19 @@
             return texture;
         }
 
-        // --- 2. ЗВУКОВОЙ ДВИЖОК ---
+        // --- 2. ЗВУКИ ---
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
 
         function initAudio() {
+            if (audioCtx) return;
             audioCtx = new AudioContext();
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = 'sawtooth';
             osc.frequency.setValueAtTime(50, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
+            gain.gain.setValueAtTime(0.015, audioCtx.currentTime);
+            osc.connect(gain); gain.connect(audioCtx.destination);
             osc.start();
         }
 
@@ -210,33 +179,31 @@
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(440, audioCtx.currentTime);
                 osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.3);
-                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
                 gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
                 osc.start(); osc.stop(audioCtx.currentTime + 0.3);
             } else if (type === 'scare') {
                 osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(100, audioCtx.currentTime);
-                osc.frequency.linearRampToValueAtTime(30, audioCtx.currentTime + 1.0);
-                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
-                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.0);
-                osc.start(); osc.stop(audioCtx.currentTime + 1.0);
+                osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(30, audioCtx.currentTime + 0.8);
+                gain.gain.setValueAtTime(0.6, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.8);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.8);
             }
         }
 
-        // --- 3. СЦЕНА, КАМЕРА И УПРАВЛЕНИЕ МЫШЬЮ ---
+        // --- 3. СЦЕНА И КАМЕРА ---
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x11100b);
-        scene.fog = new THREE.FogExp2(0x11100b, 0.075);
+        scene.fog = new THREE.FogExp2(0x11100b, 0.08);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.rotation.order = 'YXZ'; // Правильный порядок вращения для FPS
+
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         document.getElementById('game-container').appendChild(renderer.domElement);
-
-        // Контроллер захвата мыши для обзора 360 градусов
-        const controls = new THREE.PointerLockControls(camera, document.body);
 
         // --- 4. КАРТА ЛАБИРИНТА ---
         const mapSize = 15;
@@ -258,16 +225,13 @@
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
         ];
 
-        const wallTexture = createTexture('wall');
-        wallTexture.repeat.set(1, 1);
+        const wallTexture = createTexture('wall'); wallTexture.repeat.set(1, 1);
         const wallMat = new THREE.MeshStandardMaterial({ map: wallTexture, roughness: 0.85 });
-        
-        const floorTexture = createTexture('floor');
-        floorTexture.repeat.set(8, 8);
+
+        const floorTexture = createTexture('floor'); floorTexture.repeat.set(8, 8);
         const floorMat = new THREE.MeshStandardMaterial({ map: floorTexture, roughness: 0.95 });
 
-        const ceilTexture = createTexture('ceiling');
-        ceilTexture.repeat.set(8, 8);
+        const ceilTexture = createTexture('ceiling'); ceilTexture.repeat.set(8, 8);
         const ceilMat = new THREE.MeshStandardMaterial({ map: ceilTexture, roughness: 0.6 });
 
         const blockGeo = new THREE.BoxGeometry(4, 4, 4);
@@ -278,7 +242,6 @@
                 if (map[r][c] === 1) {
                     const wall = new THREE.Mesh(blockGeo, wallMat);
                     wall.position.set(c * 4, 2, r * 4);
-                    wall.castShadow = true; wall.receiveShadow = true;
                     scene.add(wall);
                     walls.push(wall);
                 }
@@ -287,27 +250,25 @@
 
         const floor = new THREE.Mesh(new THREE.PlaneGeometry(mapSize * 4, mapSize * 4), floorMat);
         floor.rotation.x = -Math.PI / 2; floor.position.set((mapSize*4)/2 - 2, 0, (mapSize*4)/2 - 2);
-        floor.receiveShadow = true; scene.add(floor);
+        scene.add(floor);
 
         const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(mapSize * 4, mapSize * 4), ceilMat);
         ceiling.rotation.x = Math.PI / 2; ceiling.position.set((mapSize*4)/2 - 2, 4, (mapSize*4)/2 - 2);
         scene.add(ceiling);
 
-        // Освещение ламп
+        // Лампы
         const lightPositions = [[4, 4], [20, 20], [40, 10], [10, 40], [50, 50]];
         lightPositions.forEach(pos => {
             const light = new THREE.PointLight(0xfffaed, 0.8, 18);
             light.position.set(pos[0], 3.8, pos[1]);
             scene.add(light);
-
             const lamp = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 0.6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
             lamp.position.set(pos[0], 3.95, pos[1]);
             scene.add(lamp);
         });
 
-        // Фонарик
+        // Фонарик игрока
         const flashlight = new THREE.SpotLight(0xfff5d0, 2.5, 25, Math.PI / 4.5, 0.4, 1);
-        flashlight.castShadow = true;
         scene.add(flashlight);
         scene.add(flashlight.target);
 
@@ -317,21 +278,19 @@
         const tapeGeo = new THREE.BoxGeometry(0.4, 0.1, 0.25);
         const tapeMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3 });
 
-        const tapeSpawnCoords = [[4, 4], [52, 4], [4, 52], [52, 52], [28, 28]];
-        tapeSpawnCoords.forEach(coord => {
+        const tapeCoords = [[4, 4], [52, 4], [4, 52], [52, 52], [28, 28]];
+        tapeCoords.forEach(coord => {
             const tape = new THREE.Mesh(tapeGeo, tapeMat);
             tape.position.set(coord[0], 0.1, coord[1]);
             const light = new THREE.PointLight(0xffea78, 0.5, 3);
             light.position.set(coord[0], 0.3, coord[1]);
-            scene.add(light);
-            scene.add(tape);
+            scene.add(light); scene.add(tape);
             tapes.push({ mesh: tape, light: light, collected: false });
         });
 
         // --- 6. МОНСТР ---
         const monsterGroup = new THREE.Group();
-        const bodyMat = new THREE.MeshBasicMaterial({ color: 0x050505 });
-        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.1, 2.8, 8), bodyMat);
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.1, 2.8, 8), new THREE.MeshBasicMaterial({ color: 0x050505 }));
         body.position.y = 1.4;
         monsterGroup.add(body);
 
@@ -344,62 +303,54 @@
         monsterGroup.position.set(52, 0, 52);
         scene.add(monsterGroup);
 
-        // --- 7. ОБРАБОТКА ДВИЖЕНИЯ И КЛАВИШ ---
+        // --- 7. СОБСТВЕННАЯ СИСТЕМА УПРАВЛЕНИЯИ ДВИЖЕНИЯ ---
         camera.position.set(6, 1.6, 6);
-        
-        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, isSprinting = false;
-        let stamina = 100;
+        let yaw = 0, pitch = 0;
         let gameActive = false;
+        let stamina = 100;
 
-        const onKeyDown = (e) => {
-            switch(e.code) {
-                case 'KeyW': case 'ArrowUp': moveForward = true; break;
-                case 'KeyS': case 'ArrowDown': moveBackward = true; break;
-                case 'KeyA': case 'ArrowLeft': moveLeft = true; break;
-                case 'KeyD': case 'ArrowRight': moveRight = true; break;
-                case 'ShiftLeft': case 'ShiftRight': isSprinting = true; break;
+        const keys = {};
+        window.addEventListener('keydown', (e) => { keys[e.code] = true; });
+        window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+        // Вращение мышью
+        document.addEventListener('mousemove', (e) => {
+            if (!gameActive) return;
+            if (document.pointerLockElement === document.body) {
+                yaw -= e.movementX * 0.0025;
+                pitch -= e.movementY * 0.0025;
+                pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitch));
+                camera.rotation.y = yaw;
+                camera.rotation.x = pitch;
             }
-        };
+        });
 
-        const onKeyUp = (e) => {
-            switch(e.code) {
-                case 'KeyW': case 'ArrowUp': moveForward = false; break;
-                case 'KeyS': case 'ArrowDown': moveBackward = false; break;
-                case 'KeyA': case 'ArrowLeft': moveLeft = false; break;
-                case 'KeyD': case 'ArrowRight': moveRight = false; break;
-                case 'ShiftLeft': case 'ShiftRight': isSprinting = false; break;
+        // Клик по экрану включат захват мыши
+        document.body.addEventListener('click', () => {
+            if (gameActive && document.pointerLockElement !== document.body) {
+                document.body.requestPointerLock();
             }
-        };
+        });
 
-        document.addEventListener('keydown', onKeyDown);
-        document.addEventListener('keyup', onKeyUp);
-
-        // Запуск игры и клик для активации мыши
         document.getElementById('start-btn').addEventListener('click', () => {
             document.getElementById('start-screen').style.display = 'none';
-            controls.lock();
             initAudio();
             gameActive = true;
+            document.body.requestPointerLock();
         });
 
-        // Повторный захват курсора при клике на экран во время игры
-        document.addEventListener('click', () => {
-            if (gameActive && !controls.isLocked) {
-                controls.lock();
-            }
-        });
-
-        function checkCollision(position) {
-            const playerRadius = 0.4;
+        // Коллизии со стенами
+        function checkCollision(pos) {
+            const r = 0.45;
             for (let wall of walls) {
                 const box = new THREE.Box3().setFromObject(wall);
-                const closestPoint = new THREE.Vector3().copy(position).clamp(box.min, box.max);
-                if (position.distanceTo(closestPoint) < playerRadius) return true;
+                const closest = new THREE.Vector3().copy(pos).clamp(box.min, box.max);
+                if (pos.distanceTo(closest) < r) return true;
             }
             return false;
         }
 
-        // --- 8. ИГРОВОЙ ЦИКЛ ---
+        // --- 8. ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ ---
         const clock = new THREE.Clock();
 
         function animate() {
@@ -408,27 +359,41 @@
 
             const delta = clock.getDelta();
 
-            // Расчет выносливости
-            let speed = 3.5;
-            if (isSprinting && stamina > 0 && (moveForward || moveBackward || moveLeft || moveRight)) {
-                speed = 6.5; stamina -= 30 * delta;
+            // Скорость и Стамина
+            const isSprinting = (keys['ShiftLeft'] || keys['ShiftRight']) && stamina > 0;
+            const speed = isSprinting ? 6.5 : 3.5;
+            if (isSprinting && (keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD'] || keys['ArrowUp'] || keys['ArrowDown'] || keys['ArrowLeft'] || keys['ArrowRight'])) {
+                stamina -= 35 * delta;
             } else if (stamina < 100) {
                 stamina += 15 * delta;
             }
             document.getElementById('stamina-bar').style.width = `${Math.max(0, stamina)}%`;
 
-            // Передвижение персонажа
-            if (controls.isLocked) {
+            // Расчет направления движения от угла камеры (yaw)
+            let moveForward = 0;
+            let moveSide = 0;
+
+            if (keys['KeyW'] || keys['ArrowUp']) moveForward += 1;
+            if (keys['KeyS'] || keys['ArrowDown']) moveForward -= 1;
+            if (keys['KeyD'] || keys['ArrowRight']) moveSide += 1;
+            if (keys['KeyA'] || keys['ArrowLeft']) moveSide -= 1;
+
+            if (moveForward !== 0 || moveSide !== 0) {
+                const sin = Math.sin(yaw);
+                const cos = Math.cos(yaw);
+
+                // Вектор вперед/назад и влево/вправо
+                const dx = (-sin * moveForward + cos * moveSide) * speed * delta;
+                const dz = (-cos * moveForward - sin * moveSide) * speed * delta;
+
                 const oldPos = camera.position.clone();
+                
+                // Проверка движения по X и Z отдельно (чтобы скользить вдоль стен)
+                camera.position.x += dx;
+                if (checkCollision(camera.position)) camera.position.x = oldPos.x;
 
-                if (moveForward) controls.moveForward(speed * delta);
-                if (moveBackward) controls.moveForward(-speed * delta);
-                if (moveLeft) controls.moveRight(-speed * delta);
-                if (moveRight) controls.moveRight(speed * delta);
-
-                if (checkCollision(camera.position)) {
-                    camera.position.copy(oldPos);
-                }
+                camera.position.z += dz;
+                if (checkCollision(camera.position)) camera.position.z = oldPos.z;
             }
 
             // Направление фонарика
@@ -446,7 +411,8 @@
                     document.getElementById('tape-count').innerText = `${tapesCollected} / 5`;
 
                     if (tapesCollected === 5) {
-                        gameActive = false; controls.unlock();
+                        gameActive = false;
+                        document.exitPointerLock();
                         document.getElementById('win-screen').style.display = 'flex';
                     }
                 }
@@ -455,8 +421,8 @@
             // ИИ Монстра
             const distToMonster = monsterGroup.position.distanceTo(camera.position);
             if (distToMonster < 25) {
-                const monsterDir = new THREE.Vector3().subVectors(camera.position, monsterGroup.position).normalize();
-                monsterGroup.position.add(monsterDir.multiplyScalar(3.2 * delta));
+                const dir = new THREE.Vector3().subVectors(camera.position, monsterGroup.position).normalize();
+                monsterGroup.position.add(dir.multiplyScalar(3.2 * delta));
                 monsterGroup.lookAt(camera.position.x, monsterGroup.position.y, camera.position.z);
             }
 
@@ -468,7 +434,7 @@
                 setTimeout(() => {
                     document.getElementById('jumpscare-overlay').style.display = 'none';
                     document.getElementById('gameover-screen').style.display = 'flex';
-                    controls.unlock();
+                    document.exitPointerLock();
                 }, 800);
             }
 
