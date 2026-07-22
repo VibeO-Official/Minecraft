@@ -726,7 +726,7 @@ monsterGroup.add(torso);
 
 const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 12), darkMat);
 head.scale.set(0.85, 1.25, 0.95);
-head.position.set(0, 1.95, 0.12); // Смотрит вперед по оси +Z
+head.position.set(0, 1.95, 0.12);
 monsterGroup.add(head);
 
 const mEyeL = new THREE.Mesh(new THREE.SphereGeometry(0.028, 6, 6), eyeMat);
@@ -900,19 +900,22 @@ function animate(){
     }
     document.getElementById('sprintBar').style.width = stamina + '%';
 
+    /* ТОЧНОЕ ДВИЖЕНИЕ ВДОЛЬ ВЗГЛЯДА КАМЕРЫ (WASD) */
+    const forwardX = -Math.sin(yaw);
+    const forwardZ = -Math.cos(yaw);
+    const rightX = Math.cos(yaw);
+    const rightZ = -Math.sin(yaw);
+
     let moveX = 0, moveZ = 0;
-    if(keys['KeyW']) moveZ -= 1;
-    if(keys['KeyS']) moveZ += 1;
-    if(keys['KeyA']) moveX -= 1;
-    if(keys['KeyD']) moveX += 1;
+    if(keys['KeyW']){ moveX += forwardX; moveZ += forwardZ; }
+    if(keys['KeyS']){ moveX -= forwardX; moveZ -= forwardZ; }
+    if(keys['KeyD']){ moveX += rightX; moveZ += rightZ; }
+    if(keys['KeyA']){ moveX -= rightX; moveZ -= rightZ; }
 
     if(moveX !== 0 || moveZ !== 0){
       const len = Math.hypot(moveX, moveZ);
-      moveX /= len; moveZ /= len;
-
-      const cos = Math.cos(yaw), sin = Math.sin(yaw);
-      const dx = (moveX * cos - moveZ * sin) * speed * delta;
-      const dz = (moveX * sin + moveZ * cos) * speed * delta;
+      const dx = (moveX / len) * speed * delta;
+      const dz = (moveZ / len) * speed * delta;
 
       if(!collides(player.x + dx, player.z)) player.x += dx;
       if(!collides(player.x, player.z + dz)) player.z += dz;
@@ -985,14 +988,13 @@ function animate(){
         monster.x += (mDx / mDist) * moveDist;
         monster.z += (mDz / mDist) * moveDist;
 
-        // Монстр бежит ЛИЦОМ к игроку
         monsterGroup.rotation.y = Math.atan2(mDx, mDz);
       }
     }
 
     monsterGroup.position.set(monster.x, 0, monster.z);
 
-    // Анимация бега
+    /* Анимация бега монстра */
     monster.animTime += delta * 12;
     const swing = Math.sin(monster.animTime) * 0.5;
     armLGroup.rotation.x = swing;
@@ -1003,7 +1005,7 @@ function animate(){
     /* Атака */
     if(distToPlayer < KILL_RADIUS && Date.now() - lastHitTime > 1000){
       lastHitTime = Date.now();
-      playerHealth -= 34; // Ровно 3 удара для смерти
+      playerHealth -= 34;
       updateHealthUI();
       
       const flash = document.getElementById('flash');
