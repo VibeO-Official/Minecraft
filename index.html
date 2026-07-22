@@ -3,1415 +3,428 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minecraft HTML: Crafting & Workbench Update</title>
+    <title>The Backrooms: 5 Tapes Horror</title>
     <style>
         body, html {
-            margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
-            font-family: 'Courier New', Courier, monospace; user-select: none; background-color: #000;
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background-color: #000;
+            font-family: 'Courier New', Courier, monospace; user-select: none;
         }
-        #canvas-container { width: 100vw; height: 100vh; display: none; }
+        #game-container { width: 100vw; height: 100vh; display: block; }
+        
+        /* Прицел и ИНФО */
         #crosshair {
-            position: absolute; top: 50%; left: 50%; width: 10px; height: 10px;
-            transform: translate(-50%, -50%); color: white; font-size: 24px; pointer-events: none; display: none; z-index: 20;
-        }
-        #debug-menu {
-            position: absolute; top: 10px; left: 10px; color: #ffffff; background: rgba(0, 0, 0, 0.6);
-            padding: 10px; font-size: 14px; line-height: 1.5; display: none; pointer-events: none; border-radius: 4px; z-index: 20;
+            position: absolute; top: 50%; left: 50%;
+            width: 8px; height: 8px; background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%; transform: translate(-50%, -50%);
+            pointer-events: none; z-index: 10;
         }
         
-        #hotbar-container {
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            display: none; background: rgba(0, 0, 0, 0.6); padding: 6px; border: 4px solid #3c3c3c; border-radius: 2px; gap: 6px; z-index: 15;
+        #hud {
+            position: absolute; top: 20px; left: 20px;
+            color: #dcd6b8; font-size: 18px; text-shadow: 2px 2px 4px #000;
+            z-index: 10; pointer-events: none;
         }
-        .hotbar-slot {
-            width: 50px; height: 50px; background: #8b8b8b; border: 3px solid #373737;
-            box-shadow: inset -3px -3px #555, inset 3px 3px #ccc; display: flex; flex-direction: column;
-            justify-content: center; align-items: center; position: relative; color: white; font-weight: bold; cursor: pointer;
+        
+        #stamina-bar-container {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            width: 200px; height: 8px; background: rgba(0,0,0,0.6);
+            border: 1px solid #777; z-index: 10; border-radius: 4px;
         }
-        .hotbar-slot.active { border: 4px solid #ffffff; box-shadow: none; background: #9c9c9c; }
-        .slot-content { display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; height: 100%; }
-        .slot-icon { font-size: 18px; margin-bottom: 2px; }
-        .slot-count { position: absolute; bottom: 1px; right: 4px; font-size: 11px; text-shadow: 2px 2px #000; }
-        .slot-label { font-size: 8px; color: #ddd; text-transform: uppercase; text-align: center;}
+        #stamina-bar { width: 100%; height: 100%; background: #e0d080; }
 
-        /* Окно Инвентаря и Верстака */
-        #inventory-screen {
+        /* Экран старта и конца игры */
+        .overlay-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.75); display: none; justify-content: center; align-items: center; z-index: 40;
-        }
-        .inventory-box {
-            background: #b8b8b8; border: 6px solid #3c3c3c; box-shadow: inset -4px -4px #555, inset 4px 4px #fff;
-            padding: 20px; width: 800px; display: flex; gap: 20px; position: relative; border-radius: 4px;
-        }
-        .inventory-title { color: #373737; font-size: 18px; margin-top: 0; margin-bottom: 10px; font-weight: bold; text-shadow: 1px 1px #eee; }
-        .inventory-left, .inventory-right { flex: 1; display: flex; flex-direction: column; }
-        
-        .inventory-grid {
-            display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
-            background: #8b8b8b; padding: 10px; border: 4px solid #373737; box-shadow: inset 3px 3px #555;
-            margin-bottom: 15px;
-        }
-        .inv-item-slot {
-            height: 55px; background: #8b8b8b; border: 3px solid #373737;
-            box-shadow: inset -3px -3px #555, inset 3px 3px #ccc; display: flex; flex-direction: column;
-            justify-content: center; align-items: center; position: relative; color: white; font-size: 11px; text-align: center;
+            background: rgba(10, 10, 8, 0.95); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 30; color: #e6dcaa;
+            text-align: center;
         }
         
-        /* Сетка Крафта */
-        .crafting-zone {
-            background: #9e9e9e; border: 4px solid #373737; padding: 10px; display: flex; align-items: center; gap: 15px; justify-content: center;
-        }
-        .craft-grid-container { display: flex; flex-direction: column; align-items: center; }
-        .craft-grid { display: grid; gap: 4px; background: #555; padding: 4px; border: 2px solid #373737; }
-        .craft-grid.size-2 { grid-template-columns: repeat(2, 45px); grid-template-rows: repeat(2, 45px); }
-        .craft-grid.size-3 { grid-template-columns: repeat(3, 45px); grid-template-rows: repeat(3, 45px); }
-        .craft-cell {
-            background: #8b8b8b; border: 2px solid #373737; box-shadow: inset 2px 2px #555;
-            display: flex; justify-content: center; align-items: center; color: white; font-size: 18px; font-weight: bold;
-        }
-        .craft-arrow { font-size: 24px; color: #373737; font-weight: bold; }
-        .craft-result-slot {
-            width: 55px; height: 55px; background: #c6c6c6; border: 3px solid #373737;
-            box-shadow: inset -3px -3px #555, inset 3px 3px #fff; display: flex; flex-direction: column;
-            justify-content: center; align-items: center; position: relative; cursor: pointer;
-        }
-        .craft-result-slot:hover { background: #dcdcdc; }
-
-        .recipes-sidebar {
-            background: #8b8b8b; border: 4px solid #373737; box-shadow: inset 3px 3px #555;
-            padding: 10px; height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
-        }
-        .recipe-book-item {
-            background: #9e9e9e; border: 2px solid #3c3c3c; padding: 6px; display: flex;
-            justify-content: space-between; align-items: center; border-radius: 2px; cursor: pointer;
-        }
-        .recipe-book-item:hover { background: #b0c4de; }
-        .recipe-name { color: white; font-size: 12px; font-weight: bold; }
-        .recipe-type-badge { font-size: 9px; background: #373737; color: #ffeb3b; padding: 2px 4px; border-radius: 2px; }
-
-        .close-inv-btn {
-            position: absolute; top: 10px; right: 10px; background: #c62828; color: white;
-            border: 2px solid #000; padding: 5px 10px; cursor: pointer; font-weight: bold;
-        }
-
-        #main-menu {
-            position: absolute; width: 100%; height: 100%;
-            background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('https://images.unsplash.com/photo-1607988795691-3d0147b43231?q=80&w=1000') center/cover;
-            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 30;
-        }
-        h1 { color: #f5f5f5; font-size: 48px; text-shadow: 4px 4px #222; margin-bottom: 20px; }
-        .menu-btn {
-            width: 320px; padding: 15px; margin: 10px; background: #5c5c5c; border: 3px solid #000;
-            color: white; font-size: 20px; cursor: pointer; text-align: center;
-            box-shadow: inset -4px -4px #3a3a3a, inset 4px 4px #7a7a7a;
-        }
-        .menu-btn:hover { background: #6c8c5c; box-shadow: inset -4px -4px #4c6c3c, inset 4px 4px #8cbc7c; }
+        h1 { font-size: 42px; margin-bottom: 10px; text-shadow: 0 0 10px #ffea78; letter-spacing: 4px; }
+        p { font-size: 16px; color: #aaa; max-width: 500px; line-height: 1.6; }
         
-        #settings-panel {
-            display: none; flex-direction: column; background: rgba(0, 0, 0, 0.9);
-            padding: 30px; border: 4px solid #5c5c5c; color: white; position: absolute; z-index: 35;
+        .btn {
+            margin-top: 25px; padding: 14px 36px; background: #2a281e; color: #ffea78;
+            border: 2px solid #ffea78; font-size: 18px; cursor: pointer;
+            font-family: inherit; font-weight: bold; transition: all 0.2s;
         }
-        .setting-row { margin: 15px 0; display: flex; justify-content: space-between; width: 340px; align-items: center; }
-        .setting-row input { width: 120px; }
+        .btn:hover { background: #ffea78; color: #000; box-shadow: 0 0 15px #ffea78; }
 
-        #mining-progress-container {
-            position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%);
-            width: 60px; height: 6px; background: rgba(0,0,0,0.5); border: 1px solid #333;
-            display: none; z-index: 25; border-radius: 2px;
+        #jumpscare-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #a00; display: none; z-index: 50; justify-content: center; align-items: center;
         }
-        #mining-progress-bar { width: 0%; height: 100%; background: #ffeb3b; transition: width 0.05s linear; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
 </head>
 <body>
 
-    <div id="main-menu">
-        <h1>MINECRAFT HTML</h1>
-        <div class="menu-btn" id="btn-mode">РЕЖИМ: ВЫЖИВАНИЕ</div>
-        <div class="menu-btn" id="btn-play">ИГРАТЬ</div>
-        <div class="menu-btn" id="btn-settings">НАСТРОЙКИ</div>
+    <div id="hud">
+        Кассеты: <span id="tape-count" style="color:#ffea78; font-weight:bold;">0 / 5</span><br>
+        <span id="prompt-text" style="font-size: 13px; color: #888;">Цель: Найдите 5 кассет VHS в лабиринте</span>
     </div>
 
-    <div id="settings-panel">
-        <h2>Настройки</h2>
-        <div class="setting-row">
-            <label for="sens-range">Обзор (Чувств.):</label>
-            <input type="range" id="sens-range" min="0.4" max="2.0" step="0.1" value="1.0">
-        </div>
-        <div class="setting-row">
-            <label for="render-distance">Видимость (Чанки):</label>
-            <input type="range" id="render-distance" min="1" max="3" step="1" value="2">
-        </div>
-        <div class="menu-btn" id="btn-back" style="width: auto; margin-top: 20px;">НАЗАД</div>
-    </div>
-
-    <div id="canvas-container"></div>
-    <div id="crosshair">+</div>
+    <div id="crosshair"></div>
     
-    <div id="mining-progress-container"><div id="mining-progress-bar"></div></div>
-
-    <div id="hotbar-container">
-        <div class="hotbar-slot active" id="slot-1"><div class="slot-content" id="h-content-1"></div></div>
-        <div class="hotbar-slot" id="slot-2"><div class="slot-content" id="h-content-2"></div></div>
-        <div class="hotbar-slot" id="slot-3"><div class="slot-content" id="h-content-3"></div></div>
-        <div class="hotbar-slot" id="slot-4"><div class="slot-content" id="h-content-4"></div></div>
-        <div class="hotbar-slot" id="slot-5"><div class="slot-content" id="h-content-5"></div></div>
-        <div class="hotbar-slot" id="slot-6"><div class="slot-content" id="h-content-6"></div></div>
-        <div class="hotbar-slot" id="slot-7"><div class="slot-content" id="h-content-7"></div></div>
-        <div class="hotbar-slot" id="slot-8"><div class="slot-content" id="h-content-8"></div></div>
-        <div class="hotbar-slot" id="slot-9"><div class="slot-content" id="h-content-9"></div></div>
+    <div id="stamina-bar-container">
+        <div id="stamina-bar"></div>
     </div>
 
-    <div id="inventory-screen">
-        <div class="inventory-box">
-            <button class="close-inv-btn" id="btn-close-inv">X</button>
-            
-            <div class="inventory-left">
-                <div class="inventory-title" id="inv-left-title">Ваш Инвентарь</div>
-                <div class="inventory-grid" id="main-inv-grid"></div>
-                
-                <div class="inventory-title" id="craft-zone-title">Крафт (2х2)</div>
-                <div class="crafting-zone">
-                    <div class="craft-grid-container">
-                        <div class="craft-grid size-2" id="craft-matrix">
-                            <div class="craft-cell" id="cc-0"></div>
-                            <div class="craft-cell" id="cc-1"></div>
-                            <div class="craft-cell" id="cc-2"></div>
-                            <div class="craft-cell" id="cc-3"></div>
-                        </div>
-                    </div>
-                    <div class="craft-arrow">➔</div>
-                    <div class="craft-result-slot" id="craft-result" onclick="collectCraftResult()"></div>
-                </div>
-            </div>
-            
-            <div class="inventory-right">
-                <div class="inventory-title">Рецепты</div>
-                <div class="recipes-sidebar" id="recipes-book-list"></div>
-            </div>
-        </div>
+    <div id="start-screen" class="overlay-screen">
+        <h1>THE BACKROOMS</h1>
+        <p>Вы провалились сквозь реальность на Уровень 0.<br>Исследуйте бесконечный лабиринт, найдите <b>5 VHS-кассет</b> и избегайте того, кто блуждает в темноте.</p>
+        <p style="color:#888; font-size: 13px;">Управление: WASD — движение | Shift — бег | Мышь — обзор</p>
+        <button class="btn" id="start-btn">ВОЙТИ В ЗАКУЛИСЬЕ</button>
     </div>
-    
-    <div id="debug-menu">
-        <strong>Minecraft Ultimate Physics Update</strong><br>
-        FPS: <span id="debug-fps">0</span><br>
-        XYZ: <span id="debug-coords">0 / 0 / 0</span><br>
-        Инструмент: <span id="debug-tool">Рука</span><br>
-        Режим меню: <span id="debug-menu-mode">Обычный</span><br>
-        <span style="color:#8cbc7c;">[E] Инвентарь | ПКМ по верстаку для крафта 3х3</span>
+
+    <div id="gameover-screen" class="overlay-screen" style="display: none;">
+        <h1 style="color: #ff3333; text-shadow: 0 0 10px #ff0000;">ОНО НАШЛО ВАС</h1>
+        <p>Вы стали частью Закулисья...</p>
+        <button class="btn" onclick="location.reload()">ПОПРОБОВАТЬ СНОВА</button>
     </div>
+
+    <div id="win-screen" class="overlay-screen" style="display: none;">
+        <h1 style="color: #78ff78; text-shadow: 0 0 10px #00ff00;">ВЫ ВЫБРАЛИСЬ</h1>
+        <p>Все 5 кассет собраны. Вы смогли найти выход из бесконечных коридоров!</p>
+        <button class="btn" onclick="location.reload()">ИГРАТЬ СНОВА</button>
+    </div>
+
+    <div id="jumpscare-overlay">
+        <h1 style="font-size: 120px; color: #000;">👀</h1>
+    </div>
+
+    <div id="game-container"></div>
 
     <script>
-        let scene, camera, renderer, controls, blockOutline, dirLight, hemiLight;
-        let sunMesh, moonMesh, cloudsMesh;
-        let handGroup, handBlockMesh, toolVisualGroup;
-        
-        const worldBlocks = new Map(); 
-        const chunks = new Map();      
-        const droppedItems = []; 
-        const mobs = []; // Массив для мобов (свиньи и зомби)
-        
-        const chunkSize = 16;
-        let worldWidthChunks = 3;    
-        let worldDepthChunks = 3;    
-        const playerRadius = 0.3;
-        
-        let playerHeight = 1.6;
-        let targetPlayerHeight = 1.6; 
-        
-        const keys = { w: false, a: false, s: false, d: false, space: false, shift: false };
-        let isSprinting = false;
-        let lastWPressTime = 0; 
-
-        const velocity = new THREE.Vector3();
-        const direction = new THREE.Vector3();
-        
-        let moveSpeed = 0.08;
-        let baseMoveSpeed = 0.08; 
-        let gravity = 0.012;
-        let jumpForce = 0.20;
-        let isGrounded = false;
-        let settingsSens = 1.0;
-        let maxRenderDistance = 2; 
-        let gameMode = 'survival';
-        
-        let isInventoryOpen = false;
-        let currentMenuMode = 'inventory'; 
-
-        // Переменные для системы ломания блоков
-        let isMining = false;
-        let mouseHoldRequired = false; // Блокировка авто-ломания следующего блока
-        let miningTargetKey = null;
-        let miningProgress = 0;
-        let currentBlockHardness = 1.0;
-        const progressBar = document.getElementById('mining-progress-bar');
-        const progressContainer = document.getElementById('mining-progress-container');
-
-        let skyTime = 0; 
-        const dayDuration = 2400; 
-
-        const inventory = { 
-            wood: 0, planks: 0, stick: 0, workbench: 0, stone: 0, grass: 0, dirt: 0, leaves: 0,
-            wood_sword: 0, wood_pickaxe: 0, wood_axe: 0,
-            stone_sword: 0, stone_pickaxe: 0, stone_axe: 0
-        }; 
-
-        const slotMapping = {
-            1: 'wood', 2: 'planks', 3: 'stick', 4: 'workbench', 
-            5: 'stone', 6: 'wood_pickaxe', 7: 'stone_pickaxe', 8: 'wood_axe', 9: 'wood_sword'
-        };
-        let currentSlotId = 1;
-        let selectedBlockType = 'wood';
-
-        const blockHardness = {
-            grass: 0.9, dirt: 0.8, wood: 3.0, stone: 7.5, leaves: 0.3, workbench: 3.5
-        };
-
-        const itemData = {
-            wood: { name: 'Бревно', icon: '🪵', isBlock: true },
-            planks: { name: 'Доски', icon: '🧱', isBlock: true },
-            stick: { name: 'Палка', icon: '🥢', isBlock: false },
-            workbench: { name: 'Верстак', icon: '📦', isBlock: true },
-            stone: { name: 'Булыжник', icon: '⬜', isBlock: true },
-            grass: { name: 'Трава', icon: '🌿', isBlock: true },
-            dirt: { name: 'Земля', icon: '🟫', isBlock: true },
-            leaves: { name: 'Листва', icon: '🍃', isBlock: true },
-            wood_sword: { name: 'Дер. Меч', icon: '🗡️', isBlock: false },
-            wood_pickaxe: { name: 'Дер. Кирка', icon: '⛏️', isBlock: false },
-            wood_axe: { name: 'Дер. Топор', icon: '🪓', isBlock: false },
-            stone_sword: { name: 'Кам. Меч', icon: '⚔️', isBlock: false },
-            stone_pickaxe: { name: 'Кам. Кирка', icon: '⛏️', isBlock: false },
-            stone_axe: { name: 'Кам. Топор', icon: '🪓', isBlock: false }
-        };
-
-        const allRecipes = [
-            { id: 'planks', name: 'Доски (4шт)', icon: '🧱', size: 2, resultCount: 4, grid: [ ['wood', ''], ['', ''] ], cost: { wood: 1 } },
-            { id: 'stick', name: 'Палки (4шт)', icon: '🥢', size: 2, resultCount: 4, grid: [ ['planks', ''], ['planks', ''] ], cost: { planks: 2 } },
-            { id: 'workbench', name: 'Верстак', icon: '📦', size: 2, resultCount: 1, grid: [ ['planks', 'planks'], ['planks', 'planks'] ], cost: { planks: 4 } },
-            { id: 'wood_pickaxe', name: 'Деревянная Кирка', icon: '⛏️', size: 3, resultCount: 1, grid: [ ['planks', 'planks', 'planks'], ['', 'stick', ''], ['', 'stick', ''] ], cost: { planks: 3, stick: 2 } },
-            { id: 'wood_axe', name: 'Деревянный Топор', icon: '🪓', size: 3, resultCount: 1, grid: [ ['planks', 'planks', ''], ['planks', 'stick', ''], ['', 'stick', ''] ], cost: { planks: 3, stick: 2 } },
-            { id: 'wood_sword', name: 'Деревянный Меч', icon: '🗡️', size: 3, resultCount: 1, grid: [ ['planks', '', ''], ['planks', '', ''], ['stick', '', ''] ], cost: { planks: 2, stick: 1 } },
-            { id: 'stone_pickaxe', name: 'Каменная Кирка', icon: '⛏️', size: 3, resultCount: 1, grid: [ ['stone', 'stone', 'stone'], ['', 'stick', ''], ['', 'stick', ''] ], cost: { stone: 3, stick: 2 } },
-            { id: 'stone_axe', name: 'Каменный Топор', icon: '🪓', size: 3, resultCount: 1, grid: [ ['stone', 'stone', ''], ['stone', 'stick', ''], ['', 'stick', ''] ], cost: { stone: 3, stick: 2 } },
-            { id: 'stone_sword', name: 'Каменный Меч', icon: '⚔️', size: 3, resultCount: 1, grid: [ ['stone', '', ''], ['stone', '', ''], ['stick', '', ''] ], cost: { stone: 2, stick: 1 } }
-        ];
-
-        let activeCraftTarget = null; 
-
-        let grassMaterials, stoneMaterial, dirtMaterial, woodMaterials, leavesMaterial, workbenchMaterials, blockGeometry, dropGeometry;
-        let weaponWoodMat, weaponStoneMat, handleMat;
-
-        const mainMenu = document.getElementById('main-menu');
-        const settingsPanel = document.getElementById('settings-panel');
-        const gameContainer = document.getElementById('canvas-container');
-        const crosshair = document.getElementById('crosshair');
-        const debugMenu = document.getElementById('debug-menu');
-        const hotbarContainer = document.getElementById('hotbar-container');
-        const inventoryScreen = document.getElementById('inventory-screen');
-        const btnMode = document.getElementById('btn-mode');
-        
-        btnMode.addEventListener('click', () => {
-            if (gameMode === 'survival') {
-                gameMode = 'creative';
-                btnMode.innerText = 'РЕЖИМ: ТВОРЧЕСКИЙ';
-                btnMode.style.background = '#4c6c8c';
-            } else {
-                gameMode = 'survival';
-                btnMode.innerText = 'РЕЖИМ: ВЫЖИВАНИЕ';
-                btnMode.style.background = '#4a4a4a';
-            }
-        });
-
-        document.getElementById('btn-play').addEventListener('click', () => {
-            mainMenu.style.display = 'none';
-            gameContainer.style.display = 'block';
-            crosshair.style.display = 'block';
-            debugMenu.style.display = 'block';
-            hotbarContainer.style.display = 'flex';
-            
-            baseMoveSpeed = (gameMode === 'creative') ? 0.16 : 0.08;
-            moveSpeed = baseMoveSpeed;
-            
-            if(gameMode === 'creative') {
-                for(let key in inventory) inventory[key] = '∞';
-            }
-            updateInventoryUI();
-
-            if(!scene) { initGame(); } else { resetPlayerPosition(); }
-            setTimeout(() => { controls.lock(); }, 100);
-        });
-
-        document.addEventListener('click', () => {
-            if (scene && mainMenu.style.display === 'none' && !isInventoryOpen) {
-                if (!controls.isLocked) controls.lock();
-            }
-        });
-
-        document.getElementById('btn-settings').addEventListener('click', () => { settingsPanel.style.display = 'flex'; });
-        document.getElementById('btn-back').addEventListener('click', () => { settingsPanel.style.display = 'none'; });
-        document.getElementById('btn-close-inv').addEventListener('click', toggleInventory);
-
-        function updateInventoryUI() {
-            for (let slotNum = 1; slotNum <= 9; slotNum++) {
-                const type = slotMapping[slotNum];
-                const count = inventory[type];
-                const container = document.getElementById(`h-content-${slotNum}`);
-                
-                if (!count || count <= 0) {
-                    container.innerHTML = ''; 
-                } else {
-                    container.innerHTML = `
-                        <span class="slot-icon">${itemData[type].icon}</span>
-                        <span class="slot-label">${itemData[type].name}</span>
-                        <span class="slot-count">${count}</span>
-                    `;
-                }
-            }
-
-            const mainGrid = document.getElementById('main-inv-grid');
-            mainGrid.innerHTML = '';
-            for (const type in inventory) {
-                const count = inventory[type];
-                if (count > 0 || count === '∞') {
-                    mainGrid.innerHTML += `
-                        <div class="inv-item-slot">
-                            <span style="font-size:18px;">${itemData[type].icon}</span>
-                            <span style="font-size:9px;">${itemData[type].name}</span>
-                            <span style="font-weight:bold; color:#ffeb3b;">x${count}</span>
-                        </div>
-                    `;
-                }
-            }
-
-            const bookList = document.getElementById('recipes-book-list');
-            bookList.innerHTML = '';
-
-            allRecipes.forEach(recipe => {
-                if (currentMenuMode === 'inventory' && recipe.size === 3) return;
-
-                let canCraft = true;
-                if (gameMode !== 'creative') {
-                    for (const item in recipe.cost) {
-                        if ((inventory[item] || 0) < recipe.cost[item]) canCraft = false;
-                    }
-                }
-
-                bookList.innerHTML += `
-                    <div class="recipe-book-item" style="opacity: ${canCraft ? '1' : '0.5'}" onclick="selectRecipeForCrafting('${recipe.id}')">
-                        <span class="recipe-name">${recipe.icon} ${recipe.name}</span>
-                        <span class="recipe-type-badge">${recipe.size}x${recipe.size}</span>
-                    </div>
-                `;
-            });
-
-            renderCraftMatrix();
-            updateHandBlockMaterial();
-            if(selectedBlockType) document.getElementById('debug-tool').innerText = itemData[selectedBlockType].name;
-        }
-
-        function renderCraftMatrix() {
-            const matrixContainer = document.getElementById('craft-matrix');
-            const resultSlot = document.getElementById('craft-result');
-
-            matrixContainer.className = `craft-grid size-${currentMenuMode === 'inventory' ? 2 : 3}`;
-            
-            let cellsHTML = '';
-            const size = currentMenuMode === 'inventory' ? 2 : 3;
-            
-            for (let i = 0; i < size * size; i++) {
-                cellsHTML += `<div class="craft-cell" id="cc-${i}"></div>`;
-            }
-            matrixContainer.innerHTML = cellsHTML;
-
-            if (activeCraftTarget) {
-                const recipe = allRecipes.find(r => r.id === activeCraftTarget);
-                if (recipe) {
-                    let idx = 0;
-                    for (let r = 0; r < size; r++) {
-                        for (let c = 0; c < size; c++) {
-                            const cell = document.getElementById(`cc-${idx}`);
-                            if(recipe.grid[r] && recipe.grid[r][c] && recipe.grid[r][c] !== '') {
-                                const type = recipe.grid[r][c];
-                                cell.innerText = itemData[type].icon;
-                            } else {
-                                cell.innerText = '';
-                            }
-                            idx++;
-                        }
-                    }
-                    resultSlot.innerHTML = `
-                        <span style="font-size:20px;">${recipe.icon}</span>
-                        <span style="position:absolute; bottom:2px; right:4px; font-size:11px; color:black; font-weight:bold;">${recipe.resultCount}</span>
-                    `;
-                    return;
-                }
-            }
-            resultSlot.innerHTML = '';
-        }
-
-        window.selectRecipeForCrafting = function(id) {
-            activeCraftTarget = id;
-            renderCraftMatrix();
-        };
-
-        window.collectCraftResult = function() {
-            if (!activeCraftTarget) return;
-            const recipe = allRecipes.find(r => r.id === activeCraftTarget);
-            if (!recipe) return;
-
-            if (gameMode !== 'creative') {
-                for (const item in recipe.cost) {
-                    if ((inventory[item] || 0) < recipe.cost[item]) {
-                        alert("Не хватает ресурсов для создания!");
-                        return;
-                    }
-                }
-                for (const item in recipe.cost) {
-                    inventory[item] -= recipe.cost[item];
-                }
-            }
-
-            if (inventory[recipe.id] !== '∞') {
-                inventory[recipe.id] = (inventory[recipe.id] || 0) + recipe.resultCount;
-            }
-
-            let stillCanCraft = true;
-            for (const item in recipe.cost) {
-                if ((inventory[item] || 0) < recipe.cost[item]) stillCanCraft = false;
-            }
-            if(!stillCanCraft) activeCraftTarget = null;
-
-            updateInventoryUI();
-            selectSlot(currentSlotId);
-        };
-
-        function selectSlot(slotNum) {
-            currentSlotId = slotNum;
-            selectedBlockType = slotMapping[slotNum];
-            
-            document.querySelectorAll('.hotbar-slot').forEach(el => el.classList.remove('active'));
-            document.getElementById(`slot-${slotNum}`).classList.add('active');
-            updateHandBlockMaterial();
-            stopMining();
-            if(selectedBlockType) document.getElementById('debug-tool').innerText = itemData[selectedBlockType].name;
-        }
-
-        function toggleInventory(forcedMode = null) {
-            if (!scene || mainMenu.style.display === 'flex') return;
-            
-            if (forcedMode) {
-                currentMenuMode = forcedMode;
-            } else {
-                currentMenuMode = 'inventory'; 
-            }
-
-            isInventoryOpen = !isInventoryOpen;
-            if (isInventoryOpen) {
-                controls.unlock();
-                stopMining();
-                
-                if (currentMenuMode === 'workbench') {
-                    document.getElementById('inv-left-title').innerText = "Верстак (Сетка 3х3)";
-                    document.getElementById('craft-zone-title').innerText = "Сетка Создания Верстака";
-                    document.getElementById('debug-menu-mode').innerText = "Окно Верстака";
-                } else {
-                    document.getElementById('inv-left-title').innerText = "Ваш Инвентарь";
-                    document.getElementById('craft-zone-title').innerText = "Крафт в Кармане (2х2)";
-                    document.getElementById('debug-menu-mode').innerText = "Обычный";
-                }
-
-                updateInventoryUI();
-                inventoryScreen.style.display = 'flex';
-            } else {
-                inventoryScreen.style.display = 'none';
-                activeCraftTarget = null;
-                setTimeout(() => { controls.lock(); }, 50);
-            }
-        }
-
-        function buildToolDesign(type) {
-            while(toolVisualGroup.children.length > 0) { toolVisualGroup.remove(toolVisualGroup.children[0]); }
-            if(!type) return;
-
-            const isStone = type.startsWith('stone');
-            const materialMain = isStone ? weaponStoneMat : weaponWoodMat;
-
-            const stickGeo = new THREE.BoxGeometry(0.03, 0.5, 0.03);
-            const stickMesh = new THREE.Mesh(stickGeo, handleMat);
-            stickMesh.position.set(0.35, -0.3, -0.5); stickMesh.rotation.set(0.3, 0, 0.2);
-            toolVisualGroup.add(stickMesh);
-
-            if (type.includes('sword')) {
-                const bladeGeo = new THREE.BoxGeometry(0.06, 0.45, 0.02);
-                const bladeMesh = new THREE.Mesh(bladeGeo, materialMain);
-                bladeMesh.position.set(0.35, -0.05, -0.55); bladeMesh.rotation.set(0.3, 0, 0.2);
-                toolVisualGroup.add(bladeMesh);
-
-                const guardGeo = new THREE.BoxGeometry(0.16, 0.03, 0.04);
-                const guardMesh = new THREE.Mesh(guardGeo, materialMain);
-                guardMesh.position.set(0.35, -0.22, -0.52); guardMesh.rotation.set(0.3, 0, 0.2);
-                toolVisualGroup.add(guardMesh);
-            } else if (type.includes('pickaxe')) {
-                const pickGeo = new THREE.BoxGeometry(0.28, 0.04, 0.04);
-                const pickMesh = new THREE.Mesh(pickGeo, materialMain);
-                pickMesh.position.set(0.35, -0.07, -0.55); pickMesh.rotation.set(0.3, 0, 0.5); 
-                toolVisualGroup.add(pickMesh);
-            } else if (type.includes('axe')) {
-                const axeGeo = new THREE.BoxGeometry(0.12, 0.12, 0.04);
-                const axeMesh = new THREE.Mesh(axeGeo, materialMain);
-                axeMesh.position.set(0.39, -0.07, -0.56); axeMesh.rotation.set(0.3, 0, 0.2);
-                toolVisualGroup.add(axeMesh);
-            }
-        }
-
-        function updateHandBlockMaterial() {
-            if (!handBlockMesh || !toolVisualGroup) return;
-            
-            if (!selectedBlockType || (gameMode === 'survival' && inventory[selectedBlockType] <= 0)) {
-                handBlockMesh.visible = false; buildToolDesign(null); return;
-            }
-            
-            if (itemData[selectedBlockType].isBlock) {
-                handBlockMesh.visible = true; buildToolDesign(null); 
-                
-                if (selectedBlockType === 'grass') handBlockMesh.material = grassMaterials;
-                else if (selectedBlockType === 'dirt') handBlockMesh.material = dirtMaterial;
-                else if (selectedBlockType === 'stone') handBlockMesh.material = stoneMaterial;
-                else if (selectedBlockType === 'wood') handBlockMesh.material = woodMaterials;
-                else if (selectedBlockType === 'leaves') handBlockMesh.material = leavesMaterial;
-                else if (selectedBlockType === 'planks') handBlockMesh.material = woodMaterials[2]; 
-                else if (selectedBlockType === 'workbench') handBlockMesh.material = workbenchMaterials;
-            } else {
-                handBlockMesh.visible = false; buildToolDesign(selectedBlockType);
-            }
-        }
-
-        function createCanvasTexture(drawFunc) {
+        // --- 1. ГЕНЕРАЦИЯ РЕАЛИСТИЧНЫХ ТЕКСТУР ---
+        function createTexture(type) {
             const canvas = document.createElement('canvas');
-            canvas.width = 64; canvas.height = 64;
+            canvas.width = 512; canvas.height = 512;
             const ctx = canvas.getContext('2d');
-            drawFunc(ctx);
+
+            if (type === 'wall') {
+                // Жёлтые обои с полосками и шумом
+                ctx.fillStyle = '#bfa648'; ctx.fillRect(0, 0, 512, 512);
+                ctx.fillStyle = '#a8903b';
+                for (let i = 0; i < 512; i += 16) ctx.fillRect(i, 0, 8, 512);
+                // Шум и грязь
+                for (let i = 0; i < 8000; i++) {
+                    ctx.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.03)';
+                    ctx.fillRect(Math.random()*512, Math.random()*512, 3, 3);
+                }
+            } else if (type === 'floor') {
+                // Мокрый старый ковер
+                ctx.fillStyle = '#4a422d'; ctx.fillRect(0, 0, 512, 512);
+                for (let i = 0; i < 15000; i++) {
+                    ctx.fillStyle = Math.random() > 0.5 ? '#3b3422' : '#595037';
+                    ctx.fillRect(Math.random()*512, Math.random()*512, 2, 2);
+                }
+            } else if (type === 'ceiling') {
+                // Плиточный потолок с сеткой
+                ctx.fillStyle = '#cfcba8'; ctx.fillRect(0, 0, 512, 512);
+                ctx.strokeStyle = '#8c886b'; ctx.lineWidth = 4;
+                ctx.strokeRect(0, 0, 512, 512); ctx.strokeRect(0, 0, 256, 256);
+                ctx.strokeRect(256, 0, 256, 256); ctx.strokeRect(0, 256, 256, 256);
+            }
+
             const texture = new THREE.CanvasTexture(canvas);
-            texture.magFilter = THREE.NearestFilter;
-            texture.minFilter = THREE.NearestFilter;
+            texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping;
             return texture;
         }
 
-        // --- СПАВН И ТЕКСТУРЫ МОБОВ (Свиньи и Зомби) ---
-        function createMobTexture(color, detailColor, eyeColor) {
-            return createCanvasTexture(ctx => {
-                ctx.fillStyle = color; ctx.fillRect(0, 0, 64, 64);
-                ctx.fillStyle = detailColor;
-                for (let i = 0; i < 40; i++) {
-                    ctx.fillRect(Math.random()*64, Math.random()*64, 4, 4);
-                }
-                if (eyeColor) {
-                    ctx.fillStyle = eyeColor;
-                    ctx.fillRect(12, 20, 8, 8);
-                    ctx.fillRect(44, 20, 8, 8);
-                }
-            });
+        // --- 2. АУДИО СИСТЕМА (Звуковой движок Web Audio) ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+
+        function initAudio() {
+            audioCtx = new AudioContext();
+            // Гул флуоресцентных ламп
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(50, audioCtx.currentTime); // 50Гц гудение
+            gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
         }
 
-        function spawnMob(type, x, z) {
-            const mobGroup = new THREE.Group();
-            let bodyMat, headMat;
+        function playSound(type) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
 
-            if (type === 'pig') {
-                const pigTex = createMobTexture('#f48fb1', '#ec407a', '#000');
-                bodyMat = new THREE.MeshStandardMaterial({ map: pigTex });
-                headMat = bodyMat;
-
-                // Тело
-                const body = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 1.2), bodyMat);
-                body.position.y = 0.6;
-                mobGroup.add(body);
-
-                // Голова
-                const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), headMat);
-                head.position.set(0, 0.8, 0.7);
-                // Рыло
-                const snout = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.2), new THREE.MeshStandardMaterial({ color: 0xe91e63 }));
-                snout.position.set(0, 0.75, 1.0);
-                mobGroup.add(head); mobGroup.add(snout);
-
-                // Ноги
-                for (let i of [-0.3, 0.3]) {
-                    for (let j of [-0.4, 0.4]) {
-                        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.4, 0.25), bodyMat);
-                        leg.position.set(i, 0.2, j);
-                        mobGroup.add(leg);
-                    }
-                }
-            } else if (type === 'zombie') {
-                const zSkin = createMobTexture('#2e7d32', '#1b5e20', '#ff0000');
-                const zClothes = createMobTexture('#1565c0', '#0d47a1');
-                bodyMat = new THREE.MeshStandardMaterial({ map: zClothes });
-                headMat = new THREE.MeshStandardMaterial({ map: zSkin });
-
-                // Голова
-                const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), headMat);
-                head.position.y = 1.6;
-                mobGroup.add(head);
-
-                // Тело
-                const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.3), bodyMat);
-                body.position.y = 1.0;
-                mobGroup.add(body);
-
-                // Руки вытянуты
-                const arm1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.2), headMat);
-                arm1.position.set(-0.35, 1.1, 0.3);
-                arm1.rotation.x = Math.PI / 2;
-                const arm2 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.2), headMat);
-                arm2.position.set(0.35, 1.1, 0.3);
-                arm2.rotation.x = Math.PI / 2;
-                mobGroup.add(arm1); mobGroup.add(arm2);
-
-                // Ноги
-                const leg1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.2), bodyMat);
-                leg1.position.set(-0.15, 0.3, 0);
-                const leg2 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.2), bodyMat);
-                leg2.position.set(0.15, 0.3, 0);
-                mobGroup.add(leg1); mobGroup.add(leg2);
-            }
-
-            const y = getHighestBlockY(Math.floor(x), Math.floor(z)) + 1;
-            mobGroup.position.set(x, y, z);
-            scene.add(mobGroup);
-
-            mobs.push({
-                mesh: mobGroup,
-                type: type,
-                vx: (Math.random() - 0.5) * 0.02,
-                vz: (Math.random() - 0.5) * 0.02,
-                timer: 0
-            });
-        }
-
-        function updateMobs() {
-            const isNight = skyTime > dayDuration * 0.5;
-
-            // Спавн зомби ночью
-            if (isNight && mobs.filter(m => m.type === 'zombie').length < 4) {
-                const px = camera.position.x + (Math.random() - 0.5) * 30;
-                const pz = camera.position.z + (Math.random() - 0.5) * 30;
-                spawnMob('zombie', px, pz);
-            }
-
-            for (let i = mobs.length - 1; i >= 0; i--) {
-                const mob = mobs[i];
-
-                // Днём зомби пропадают
-                if (!isNight && mob.type === 'zombie') {
-                    scene.remove(mob.mesh);
-                    mobs.splice(i, 1);
-                    continue;
-                }
-
-                if (mob.type === 'zombie') {
-                    // Агрится на игрока
-                    const dx = camera.position.x - mob.mesh.position.x;
-                    const dz = camera.position.z - mob.mesh.position.z;
-                    const dist = Math.sqrt(dx * dx + dz * dz);
-                    if (dist > 0.5 && dist < 25) {
-                        mob.mesh.position.x += (dx / dist) * 0.03;
-                        mob.mesh.position.z += (dz / dist) * 0.03;
-                        mob.mesh.lookAt(camera.position.x, mob.mesh.position.y, camera.position.z);
-                    }
-                } else {
-                    // Обычное мирное брождение
-                    mob.timer++;
-                    if (mob.timer > 100) {
-                        mob.vx = (Math.random() - 0.5) * 0.02;
-                        mob.vz = (Math.random() - 0.5) * 0.02;
-                        mob.timer = 0;
-                    }
-                    mob.mesh.position.x += mob.vx;
-                    mob.mesh.position.z += mob.vz;
-                    if (mob.vx !== 0 || mob.vz !== 0) {
-                        mob.mesh.rotation.y = Math.atan2(mob.vx, mob.vz);
-                    }
-                }
-
-                // Коррекция высоты моба
-                const hy = getHighestBlockY(Math.floor(mob.mesh.position.x), Math.floor(mob.mesh.position.z)) + 1;
-                mob.mesh.position.y = hy;
+            if (type === 'pickup') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+            } else if (type === 'scare') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(30, audioCtx.currentTime + 1.0);
+                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.0);
+                osc.start(); osc.stop(audioCtx.currentTime + 1.0);
             }
         }
 
-        function spawnDroppedItem(type, x, y, z) {
-            let mat;
-            if (type === 'grass') mat = grassMaterials;
-            else if (type === 'dirt') mat = dirtMaterial;
-            else if (type === 'stone') mat = stoneMaterial;
-            else if (type === 'wood') mat = woodMaterials;
-            else if (type === 'leaves') mat = leavesMaterial;
-            else if (type === 'planks') mat = woodMaterials[2];
-            else if (type === 'workbench') mat = workbenchMaterials;
-            else return; 
+        // --- 3. СЦЕНА, КАМЕРА И МИР ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1810);
+        scene.fog = new THREE.FogExp2(0x1a1810, 0.08); // Реалистичный туман Закулисья
 
-            const mesh = new THREE.Mesh(dropGeometry, mat);
-            mesh.position.set(x + (Math.random()-0.5)*0.2, y + 0.2, z + (Math.random()-0.5)*0.2);
-            mesh.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0);
-            scene.add(mesh);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.getElementById('game-container').appendChild(renderer.domElement);
 
-            droppedItems.push({
-                mesh: mesh, type: type,
-                spawnTime: Date.now(),
-                rotSpeed: Math.random() * 0.03 + 0.01
-            });
-        }
+        const controls = new THREE.PointerLockControls(camera, document.body);
 
-        function updateDroppedItems() {
-            const playerPos = camera.position;
-            for (let i = droppedItems.length - 1; i >= 0; i--) {
-                const item = droppedItems[i];
-                item.mesh.rotation.y += item.rotSpeed;
-                
-                const dist = playerPos.distanceTo(item.mesh.position);
-                if (dist < 1.8) {
-                    item.mesh.position.lerp(playerPos, 0.15);
-                    if (dist < 0.6) {
-                        if (inventory[item.type] !== '∞') {
-                            inventory[item.type] = (inventory[item.type] || 0) + 1;
-                        }
-                        updateInventoryUI();
-                        scene.remove(item.mesh);
-                        droppedItems.splice(i, 1);
-                    }
+        // --- 4. КАРТА ЛАБИРИНТА (1 = Стена, 0 = Проход) ---
+        const mapSize = 15;
+        const map = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
+            [1,0,1,0,1,0,1,1,1,0,1,0,1,0,1],
+            [1,0,1,0,0,0,0,0,1,0,0,0,1,0,1],
+            [1,0,1,1,1,1,0,1,1,1,1,0,1,0,1],
+            [1,0,0,0,0,1,0,0,0,0,1,0,0,0,1],
+            [1,1,1,0,1,1,1,1,0,1,1,0,1,1,1],
+            [1,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
+            [1,0,1,1,1,0,1,1,1,0,1,1,1,0,1],
+            [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
+            [1,0,1,0,1,1,1,0,1,1,1,0,1,0,1],
+            [1,0,1,0,0,0,1,0,1,0,0,0,1,0,1],
+            [1,0,1,1,1,0,1,0,1,0,1,1,1,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+
+        const wallMat = new THREE.MeshStandardMaterial({ map: createTexture('wall'), roughness: 0.8 });
+        wallMat.map.repeat.set(1, 1);
+        const floorMat = new THREE.MeshStandardMaterial({ map: createTexture('floor'), roughness: 0.9 });
+        floorMat.map.repeat.set(12, 12);
+        const ceilMat = new THREE.MeshStandardMaterial({ map: createTexture('ceiling'), roughness: 0.5 });
+        ceilMat.map.repeat.set(12, 12);
+
+        const blockGeo = new THREE.BoxGeometry(4, 4, 4);
+        const walls = [];
+
+        // Построение стен, пола и потолка
+        for (let r = 0; r < mapSize; r++) {
+            for (let c = 0; c < mapSize; c++) {
+                if (map[r][c] === 1) {
+                    const wall = new THREE.Mesh(blockGeo, wallMat);
+                    wall.position.set(c * 4, 2, r * 4);
+                    wall.castShadow = true; wall.receiveShadow = true;
+                    scene.add(wall);
+                    walls.push(wall);
                 }
             }
         }
 
-        function initTextures() {
-            blockGeometry = new THREE.BoxGeometry(1, 1, 1);
-            dropGeometry = new THREE.BoxGeometry(0.25, 0.25, 0.25);
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(mapSize * 4, mapSize * 4), floorMat);
+        floor.rotation.x = -Math.PI / 2; floor.position.set((mapSize*4)/2 - 2, 0, (mapSize*4)/2 - 2);
+        floor.receiveShadow = true; scene.add(floor);
 
-            const grassTopTex = createCanvasTexture(ctx => {
-                ctx.fillStyle = '#5b8731'; ctx.fillRect(0,0,64,64);
-                ctx.fillStyle = '#4a6f28';
-                for(let i=0; i<150; i++) ctx.fillRect(Math.random()*64, Math.random()*64, 4, 4);
-            });
+        const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(mapSize * 4, mapSize * 4), ceilMat);
+        ceiling.rotation.x = Math.PI / 2; ceiling.position.set((mapSize*4)/2 - 2, 4, (mapSize*4)/2 - 2);
+        scene.add(ceiling);
 
-            const dirtTex = createCanvasTexture(ctx => {
-                ctx.fillStyle = '#866043'; ctx.fillRect(0,0,64,64);
-                ctx.fillStyle = '#5c3d26';
-                for(let i=0; i<150; i++) ctx.fillRect(Math.random()*64, Math.random()*64, 4, 4);
-            });
+        // Флуоресцентное освещение (несколько ламп)
+        const lightPositions = [[4, 4], [20, 20], [40, 10], [10, 40], [50, 50]];
+        lightPositions.forEach(pos => {
+            const light = new THREE.PointLight(0xfffaed, 0.8, 18);
+            light.position.set(pos[0], 3.8, pos[1]);
+            scene.add(light);
+            // Визуал лампы
+            const lamp = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 0.6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+            lamp.position.set(pos[0], 3.95, pos[1]);
+            scene.add(lamp);
+        });
 
-            const grassSideTex = createCanvasTexture(ctx => {
-                ctx.fillStyle = '#866043'; ctx.fillRect(0,0,64,64);
-                ctx.fillStyle = '#5c3d26';
-                for(let i=0; i<100; i++) ctx.fillRect(Math.random()*64, Math.random()*64, 4, 4);
-                ctx.fillStyle = '#5b8731'; ctx.fillRect(0,0,64,20);
-                for(let i=0; i<64; i+=4) {
-                    if(Math.random() > 0.3) ctx.fillRect(i, 20, 4, Math.random()*12);
-                }
-            });
+        // Фонарик игрока
+        const flashlight = new THREE.SpotLight(0xfff5d0, 2, 22, Math.PI / 5, 0.4, 1);
+        flashlight.castShadow = true;
+        scene.add(flashlight);
+        scene.add(flashlight.target);
 
-            const stoneTex = createCanvasTexture(ctx => {
-                ctx.fillStyle = '#737373'; ctx.fillRect(0,0,64,64);
-                ctx.fillStyle = '#525252';
-                for(let i=0; i<120; i++) ctx.fillRect(Math.random()*64, Math.random()*64, 4, 4);
-                ctx.fillStyle = '#8a8a8a';
-                for(let i=0; i<60; i++) ctx.fillRect(Math.random()*64, Math.random()*64, 2, 2);
-            });
+        // --- 5. КАССЕТЫ (Предметы для сбора) ---
+        const tapes = [];
+        let tapesCollected = 0;
+        const tapeGeo = new THREE.BoxGeometry(0.4, 0.1, 0.25);
+        const tapeMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3 });
 
-            const woodSideTex = createCanvasTexture(ctx => {
-                ctx.fillStyle = '#674d32'; ctx.fillRect(0,0,64,64);
-                ctx.fillStyle = '#3e2e1e';
-                for(let i=0; i<64; i+=8) ctx.fillRect(i, 0, 3, 64);
-            });
+        const tapeSpawnCoords = [[4, 4], [52, 4], [4, 52], [52, 52], [28, 28]];
+        tapeSpawnCoords.forEach(coord => {
+            const tape = new THREE.Mesh(tapeGeo, tapeMat);
+            tape.position.set(coord[0], 0.1, coord[1]);
+            // Небольшая светящаяся рамка для облегчения поиска
+            const light = new THREE.PointLight(0xffea78, 0.5, 3);
+            light.position.set(coord[0], 0.3, coord[1]);
+            scene.add(light);
+            scene.add(tape);
+            tapes.push({ mesh: tape, light: light, collected: false });
+        });
 
-            const woodTopTex = createCanvasTexture(ctx => {
-                ctx.fillStyle = '#9c784e'; ctx.fillRect(0,0,64,64);
-                ctx.fillStyle = '#674d32';
-                ctx.beginPath(); ctx.arc(32,32,20,0,Math.PI*2); ctx.stroke();
-                ctx.beginPath(); ctx.arc(32,32,10,0,Math.PI*2); ctx.stroke();
-            });
+        // --- 6. РЕАЛИСТИЧНЫЙ МОНСТР ---
+        const monsterGroup = new THREE.Group();
+        
+        // Высокая темная гуманоидная сущность
+        const bodyMat = new THREE.MeshBasicMaterial({ color: 0x050505 });
+        const bodyGeo = new THREE.CylinderGeometry(0.3, 0.1, 2.8, 8);
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.position.y = 1.4;
+        monsterGroup.add(body);
 
-            const leavesTex = createCanvasTexture(ctx => {
-                ctx.fillStyle = '#3a5f0b'; ctx.fillRect(0,0,64,64);
-                ctx.fillStyle = '#284404';
-                for(let i=0; i<200; i++) ctx.fillRect(Math.random()*64, Math.random()*64, 4, 4);
-            });
+        // Светящиеся белые глаза
+        const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const eyeGeo = new THREE.SphereGeometry(0.05, 8, 8);
+        const eye1 = new THREE.Mesh(eyeGeo, eyeMat); eye1.position.set(-0.1, 2.4, 0.25);
+        const eye2 = new THREE.Mesh(eyeGeo, eyeMat); eye2.position.set(0.1, 2.4, 0.25);
+        monsterGroup.add(eye1); monsterGroup.add(eye2);
 
-            const planksTex = createCanvasTexture(ctx => {
-                ctx.fillStyle = '#a88154'; ctx.fillRect(0,0,64,64);
-                ctx.fillStyle = '#6d5132';
-                ctx.fillRect(0, 15, 64, 2); ctx.fillRect(0, 31, 64, 2); ctx.fillRect(0, 47, 64, 2);
-            });
+        monsterGroup.position.set(52, 0, 52); // Старт монстра в дальнем углу
+        scene.add(monsterGroup);
 
-            const workbenchTopTex = createCanvasTexture(ctx => {
-                ctx.fillStyle = '#a88154'; ctx.fillRect(0,0,64,64);
-                ctx.fillStyle = '#2b1d0c';
-                ctx.fillRect(8, 8, 48, 48);
-                ctx.fillStyle = '#866043';
-                ctx.fillRect(12, 12, 40, 40);
-            });
+        // --- 7. ИГРОВАЯ ЛОГИКА И УПРАВЛЕНИЕ ---
+        camera.position.set(6, 1.6, 6);
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, isSprinting = false;
+        let stamina = 100;
+        let gameActive = false;
 
-            const workbenchSideTex = createCanvasTexture(ctx => {
-                ctx.fillStyle = '#a88154'; ctx.fillRect(0,0,64,64);
-                ctx.fillStyle = '#5c3d26';
-                ctx.fillRect(0, 0, 64, 64);
-                ctx.fillStyle = '#2b1d0c';
-                ctx.fillRect(10, 10, 20, 20); ctx.fillRect(34, 10, 20, 20);
-            });
-
-            dirtMaterial = new THREE.MeshStandardMaterial({ map: dirtTex, roughness: 0.9 });
-            stoneMaterial = new THREE.MeshStandardMaterial({ map: stoneTex, roughness: 0.8 });
-            leavesMaterial = new THREE.MeshStandardMaterial({ map: leavesTex, roughness: 0.6, transparent: true, opacity: 0.9 });
-            
-            const grassTopMat = new THREE.MeshStandardMaterial({ map: grassTopTex, roughness: 0.8 });
-            const grassSideMat = new THREE.MeshStandardMaterial({ map: grassSideTex, roughness: 0.8 });
-            grassMaterials = [grassSideMat, grassSideMat, grassTopMat, dirtMaterial, grassSideMat, grassSideMat];
-
-            const woodSideMat = new THREE.MeshStandardMaterial({ map: woodSideTex, roughness: 0.7 });
-            const woodTopMat = new THREE.MeshStandardMaterial({ map: woodTopTex, roughness: 0.7 });
-            const planksMat = new THREE.MeshStandardMaterial({ map: planksTex, roughness: 0.7 });
-            woodMaterials = [woodSideMat, woodSideMat, woodTopMat, woodTopMat, woodSideMat, woodSideMat];
-
-            const wbTopMat = new THREE.MeshStandardMaterial({ map: workbenchTopTex, roughness: 0.7 });
-            const wbSideMat = new THREE.MeshStandardMaterial({ map: workbenchSideTex, roughness: 0.7 });
-            workbenchMaterials = [wbSideMat, wbSideMat, wbTopMat, planksMat, wbSideMat, wbSideMat];
-
-            weaponWoodMat = planksMat;
-            weaponStoneMat = stoneMaterial;
-            handleMat = woodSideMat;
-        }
-
-        function initGame() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x87ceeb);
-            scene.fog = new THREE.FogExp2(0x87ceeb, 0.012);
-
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            
-            renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            gameContainer.appendChild(renderer.domElement);
-
-            controls = new THREE.PointerLockControls(camera, document.body);
-
-            hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5);
-            scene.add(hemiLight);
-
-            dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            dirLight.castShadow = true;
-            dirLight.shadow.mapSize.width = 1024;
-            dirLight.shadow.mapSize.height = 1024;
-            dirLight.shadow.camera.near = 0.5;
-            dirLight.shadow.camera.far = 150;
-            const d = 40;
-            dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d;
-            dirLight.shadow.camera.top = d; dirLight.shadow.camera.bottom = -d;
-            scene.add(dirLight);
-
-            const sunGeo = new THREE.BoxGeometry(4, 4, 4);
-            const sunMat = new THREE.MeshBasicMaterial({ color: 0xffffee });
-            sunMesh = new THREE.Mesh(sunGeo, sunMat);
-            scene.add(sunMesh);
-
-            const moonGeo = new THREE.BoxGeometry(3, 3, 3);
-            const moonMat = new THREE.MeshBasicMaterial({ color: 0xddddff });
-            moonMesh = new THREE.Mesh(moonGeo, moonMat);
-            scene.add(moonMesh);
-
-            initTextures();
-
-            const outlineGeo = new THREE.BoxGeometry(1.002, 1.002, 1.002);
-            const edges = new THREE.EdgesGeometry(outlineGeo);
-            blockOutline = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 }));
-            blockOutline.visible = false;
-            scene.add(blockOutline);
-
-            handGroup = new THREE.Group();
-            handBlockMesh = new THREE.Mesh(blockGeometry, grassMaterials);
-            handBlockMesh.scale.set(0.25, 0.25, 0.25);
-            handBlockMesh.position.set(0.35, -0.25, -0.4);
-            handBlockMesh.rotation.set(0.2, -0.4, 0);
-            handGroup.add(handBlockMesh);
-
-            toolVisualGroup = new THREE.Group();
-            handGroup.add(toolVisualGroup);
-
-            camera.add(handGroup);
-            scene.add(camera);
-
-            resetPlayerPosition();
-            generateWorld();
-
-            // Спавним свиней днём
-            for (let i = 0; i < 5; i++) {
-                spawnMob('pig', (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30);
+        const onKeyDown = (e) => {
+            switch(e.code) {
+                case 'KeyW': moveForward = true; break;
+                case 'KeyS': moveBackward = true; break;
+                case 'KeyA': moveLeft = true; break;
+                case 'KeyD': moveRight = true; break;
+                case 'ShiftLeft': isSprinting = true; break;
             }
+        };
 
-            setupInputs();
-            animate();
-        }
-
-        function getHighestBlockY(x, z) {
-            for (let y = 30; y >= -10; y--) {
-                if (worldBlocks.has(`${x},${y},${z}`)) return y;
+        const onKeyUp = (e) => {
+            switch(e.code) {
+                case 'KeyW': moveForward = false; break;
+                case 'KeyS': moveBackward = false; break;
+                case 'KeyA': moveLeft = false; break;
+                case 'KeyD': moveRight = false; break;
+                case 'ShiftLeft': isSprinting = false; break;
             }
-            return 0;
-        }
+        };
 
-        function resetPlayerPosition() {
-            camera.position.set(0, 20, 0);
-            velocity.set(0, 0, 0);
-            const hy = getHighestBlockY(0, 0);
-            camera.position.y = hy + 2.6;
-        }
+        document.addEventListener('keydown', onKeyDown);
+        document.addEventListener('keyup', onKeyUp);
 
-        function getNoise(x, z) {
-            return Math.sin(x * 0.1) * Math.cos(z * 0.1) * 3 + Math.sin(x * 0.03 + z * 0.03) * 5;
-        }
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('start-screen').style.display = 'none';
+            controls.lock();
+            initAudio();
+            gameActive = true;
+        });
 
-        function createTree(tc, tx, ty, tz) {
-            const height = 4 + Math.floor(Math.random() * 2);
-            for (let i = 0; i < height; i++) {
-                setBlockInChunk(tc, tx, ty + i, tz, 'wood');
-            }
-            for (let lx = -2; lx <= 2; lx++) {
-                for (let lz = -2; lz <= 2; lz++) {
-                    for (let ly = height - 2; ly <= height + 1; ly++) {
-                        if (Math.abs(lx) === 2 && Math.abs(lz) === 2 && Math.random() > 0.5) continue;
-                        if (lx === 0 && lz === 0 && ly < height) continue;
-                        setBlockInChunk(tc, tx + lx, ty + ly, tz + lz, 'leaves');
-                    }
-                }
-            }
-        }
-
-        function setBlockInChunk(chunk, lx, ly, lz, type) {
-            const key = `${lx},${ly},${lz}`;
-            if (chunk.blocks.has(key)) return;
-            chunk.blocks.set(key, type);
-            worldBlocks.set(`${lx},${ly},${lz}`, type);
-        }
-
-        function generateChunk(cx, cz) {
-            const chunkKey = `${cx},${cz}`;
-            if (chunks.has(chunkKey)) return;
-
-            const chunk = { group: new THREE.Group(), blocks: new Map() };
-            const instances = { grass: [], dirt: [], stone: [], wood: [], leaves: [] };
-
-            for (let x = 0; x < chunkSize; x++) {
-                for (let z = 0; z < chunkSize; z++) {
-                    const wx = cx * chunkSize + x;
-                    const wz = cz * chunkSize + z;
-                    const height = Math.floor(getNoise(wx, wz)) + 5;
-
-                    for (let y = height; y >= height - 8; y--) {
-                        let type = 'stone';
-                        if (y === height) type = 'grass';
-                        else if (y > height - 3) type = 'dirt';
-
-                        setBlockInChunk(chunk, wx, y, wz, type);
-                        instances[type].push(new THREE.Vector3(wx, y, wz));
-                    }
-
-                    if (Math.random() < 0.015 && x > 2 && x < chunkSize - 2 && z > 2 && z < chunkSize - 2) {
-                        createTree(chunk, wx, height + 1, wz);
-                    }
-                }
-            }
-
-            for (const type in instances) {
-                if (instances[type].length === 0) continue;
-                let mat;
-                if (type === 'grass') mat = grassMaterials;
-                else if (type === 'dirt') mat = dirtMaterial;
-                else if (type === 'stone') mat = stoneMaterial;
-                else if (type === 'wood') mat = woodMaterials;
-                else if (type === 'leaves') mat = leavesMaterial;
-
-                const count = instances[type].length;
-                const instMesh = new THREE.InstancedMesh(blockGeometry, mat, count);
-                instMesh.castShadow = true;
-                instMesh.receiveShadow = true;
-
-                const dummy = new THREE.Object3D();
-                for (let i = 0; i < count; i++) {
-                    dummy.position.copy(instances[type][i]);
-                    dummy.updateMatrix();
-                    instMesh.setMatrixAt(i, dummy.matrix);
-                }
-                instMesh.instanceMatrix.needsUpdate = true;
-                chunk.group.add(instMesh);
-            }
-
-            scene.add(chunk.group);
-            chunks.set(chunkKey, chunk);
-        }
-
-        function generateWorld() {
-            const pCX = Math.floor(camera.position.x / chunkSize);
-            const pCZ = Math.floor(camera.position.z / chunkSize);
-
-            for (let x = -maxRenderDistance; x <= maxRenderDistance; x++) {
-                for (let z = -maxRenderDistance; z <= maxRenderDistance; z++) {
-                    generateChunk(pCX + x, pCZ + z);
-                }
-            }
-        }
-
-        function updateSkyCycle() {
-            skyTime = (skyTime + 1) % dayDuration;
-            const angle = (skyTime / dayDuration) * Math.PI * 2;
-            const dist = 100;
-
-            const sunX = camera.position.x + Math.cos(angle) * dist;
-            const sunY = camera.position.y + Math.sin(angle) * dist;
-            sunMesh.position.set(sunX, sunY, camera.position.z);
-
-            const moonX = camera.position.x + Math.cos(angle + Math.PI) * dist;
-            const moonY = camera.position.y + Math.sin(angle + Math.PI) * dist;
-            moonMesh.position.set(moonX, moonY, camera.position.z);
-
-            dirLight.position.set(sunX, sunY, camera.position.z + 20);
-
-            const skyFactor = Math.sin(angle);
-            if (skyFactor > 0) {
-                scene.background.setHSL(0.6, 0.6, 0.5 * skyFactor + 0.1);
-                scene.fog.color.setHSL(0.6, 0.6, 0.5 * skyFactor + 0.1);
-                dirLight.intensity = skyFactor * 0.9 + 0.1;
-            } else {
-                scene.background.setHSL(0.7, 0.8, 0.03);
-                scene.fog.color.setHSL(0.7, 0.8, 0.03);
-                dirLight.intensity = 0.05;
-            }
-        }
-
-        function setupInputs() {
-            document.addEventListener('keydown', (e) => {
-                if (isInventoryOpen && e.code !== 'KeyE') return;
-                switch (e.code) {
-                    case 'KeyW': 
-                        if (!keys.w && (performance.now() - lastWPressTime < 250)) isSprinting = true;
-                        lastWPressTime = performance.now();
-                        keys.w = true; 
-                        break;
-                    case 'KeyS': keys.s = true; break;
-                    case 'KeyA': keys.a = true; break;
-                    case 'KeyD': keys.d = true; break;
-                    case 'Space': keys.space = true; break;
-                    case 'ShiftLeft': keys.shift = true; break;
-                    case 'KeyE': toggleInventory(); break;
-                    case 'Digit1': selectSlot(1); break;
-                    case 'Digit2': selectSlot(2); break;
-                    case 'Digit3': selectSlot(3); break;
-                    case 'Digit4': selectSlot(4); break;
-                    case 'Digit5': selectSlot(5); break;
-                    case 'Digit6': selectSlot(6); break;
-                    case 'Digit7': selectSlot(7); break;
-                    case 'Digit8': selectSlot(8); break;
-                    case 'Digit9': selectSlot(9); break;
-                }
-            });
-
-            document.addEventListener('keyup', (e) => {
-                switch (e.code) {
-                    case 'KeyW': keys.w = false; isSprinting = false; break;
-                    case 'KeyS': keys.s = false; break;
-                    case 'KeyA': keys.a = false; break;
-                    case 'KeyD': keys.d = false; break;
-                    case 'Space': keys.space = false; break;
-                    case 'ShiftLeft': keys.shift = false; break;
-                }
-            });
-
-            document.addEventListener('mousedown', (e) => {
-                if (!controls.isLocked || isInventoryOpen) return;
-                if (e.button === 0) { 
-                    if (!mouseHoldRequired) startMining(); 
-                } else if (e.button === 2) { 
-                    placeBlockOrInteract(); 
-                }
-            });
-
-            document.addEventListener('mouseup', (e) => {
-                if (e.button === 0) {
-                    mouseHoldRequired = false; // Сброс блокировки при отпускании мыши
-                    stopMining();
-                }
-            });
-
-            document.getElementById('sens-range').addEventListener('input', (e) => {
-                settingsSens = parseFloat(e.target.value);
-            });
-            document.getElementById('render-distance').addEventListener('input', (e) => {
-                maxRenderDistance = parseInt(e.target.value);
-                if(scene) generateWorld();
-            });
-        }
-
-        function startMining() {
-            const raycaster = new THREE.Raycaster();
-            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-            const intersects = raycaster.intersectObjects(scene.children, true);
-
-            if (intersects.length > 0 && intersects[0].distance < 5) {
-                const hit = intersects[0];
-                if (hit.object === sunMesh || hit.object === moonMesh || hit.object === blockOutline) return;
-
-                const targetPos = hit.point.clone().add(hit.face.normal.clone().multiplyScalar(-0.5)).floor();
-                const key = `${targetPos.x},${targetPos.y},${targetPos.z}`;
-
-                if (worldBlocks.has(key)) {
-                    isMining = true;
-                    miningTargetKey = key;
-                    miningProgress = 0;
-                    
-                    const blockType = worldBlocks.get(key);
-                    const baseHardness = blockHardness[blockType] || 1.0;
-
-                    let speedMultiplier = 1.0;
-                    if (selectedBlockType) {
-                        if (selectedBlockType.includes('pickaxe') && blockType === 'stone') speedMultiplier = 4.0;
-                        if (selectedBlockType.includes('axe') && (blockType === 'wood' || blockType === 'workbench')) speedMultiplier = 4.0;
-                    }
-
-                    currentBlockHardness = (gameMode === 'creative') ? 0.01 : (baseHardness / speedMultiplier);
-                    progressContainer.style.display = 'block';
-                }
-            }
-        }
-
-        function stopMining() {
-            isMining = false;
-            miningTargetKey = null;
-            miningProgress = 0;
-            if (progressContainer) progressContainer.style.display = 'none';
-        }
-
-        function updateMiningProgress() {
-            if (!isMining || !miningTargetKey || mouseHoldRequired) return;
-
-            const raycaster = new THREE.Raycaster();
-            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-            const intersects = raycaster.intersectObjects(scene.children, true);
-
-            if (intersects.length > 0 && intersects[0].distance < 5) {
-                const hit = intersects[0];
-                const targetPos = hit.point.clone().add(hit.face.normal.clone().multiplyScalar(-0.5)).floor();
-                const key = `${targetPos.x},${targetPos.y},${targetPos.z}`;
-
-                if (key === miningTargetKey) {
-                    miningProgress += 0.05;
-                    const percent = Math.min(100, (miningProgress / currentBlockHardness) * 100);
-                    progressBar.style.width = `${percent}%`;
-
-                    // Анимация руки
-                    handGroup.position.z = Math.sin(performance.now() * 0.02) * 0.08;
-
-                    if (miningProgress >= currentBlockHardness) {
-                        breakBlock(key, targetPos);
-                        stopMining();
-                        mouseHoldRequired = true; // Блокировка: ждём повторного клика мышкой!
-                    }
-                    return;
-                }
-            }
-            stopMining();
-        }
-
-        function breakBlock(key, pos) {
-            const blockType = worldBlocks.get(key);
-            worldBlocks.delete(key);
-
-            if (gameMode !== 'creative') {
-                spawnDroppedItem(blockType, pos.x, pos.y, pos.z);
-            }
-
-            const cX = Math.floor(pos.x / chunkSize);
-            const cZ = Math.floor(pos.z / chunkSize);
-            const chunkKey = `${cX},${cZ}`;
-
-            if (chunks.has(chunkKey)) {
-                scene.remove(chunks.get(chunkKey).group);
-                chunks.delete(chunkKey);
-                generateChunk(cX, cZ);
-            }
-        }
-
-        function placeBlockOrInteract() {
-            const raycaster = new THREE.Raycaster();
-            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-            const intersects = raycaster.intersectObjects(scene.children, true);
-
-            if (intersects.length > 0 && intersects[0].distance < 5) {
-                const hit = intersects[0];
-                const targetPos = hit.point.clone().add(hit.face.normal.clone().multiplyScalar(-0.5)).floor();
-                const clickedKey = `${targetPos.x},${targetPos.y},${targetPos.z}`;
-
-                // Взаимодействие с верстаком (ПКМ)
-                if (worldBlocks.get(clickedKey) === 'workbench') {
-                    toggleInventory('workbench');
-                    return;
-                }
-
-                // Установка блоков
-                if (!selectedBlockType || !itemData[selectedBlockType].isBlock) return;
-                if (gameMode === 'survival' && inventory[selectedBlockType] <= 0) return;
-
-                const placePos = hit.point.clone().add(hit.face.normal.clone().multiplyScalar(0.5)).floor();
-                const pBox = new THREE.Box3(
-                    new THREE.Vector3(camera.position.x - playerRadius, camera.position.y - playerHeight, camera.position.z - playerRadius),
-                    new THREE.Vector3(camera.position.x + playerRadius, camera.position.y + 0.2, camera.position.z + playerRadius)
-                );
-                const bBox = new THREE.Box3(placePos, placePos.clone().add(new THREE.Vector3(1, 1, 1)));
-
-                if (!pBox.intersectsBox(bBox)) {
-                    const placeKey = `${placePos.x},${placePos.y},${placePos.z}`;
-                    worldBlocks.set(placeKey, selectedBlockType);
-
-                    if (gameMode !== 'creative') {
-                        inventory[selectedBlockType]--;
-                        updateInventoryUI();
-                    }
-
-                    const cX = Math.floor(placePos.x / chunkSize);
-                    const cZ = Math.floor(placePos.z / chunkSize);
-                    const chunkKey = `${cX},${cZ}`;
-
-                    if (chunks.has(chunkKey)) {
-                        scene.remove(chunks.get(chunkKey).group);
-                        chunks.delete(chunkKey);
-                        generateChunk(cX, cZ);
-                    }
-                }
-            }
-        }
-
-        function checkCollision(pos) {
-            const minX = Math.floor(pos.x - playerRadius);
-            const maxX = Math.floor(pos.x + playerRadius);
-            const minY = Math.floor(pos.y - playerHeight);
-            const maxY = Math.floor(pos.y + 0.1);
-            const minZ = Math.floor(pos.z - playerRadius);
-            const maxZ = Math.floor(pos.z + playerRadius);
-
-            for (let x = minX; x <= maxX; x++) {
-                for (let y = minY; y <= maxY; y++) {
-                    for (let z = minZ; z <= maxZ; z++) {
-                        if (worldBlocks.has(`${x},${y},${z}`)) return true;
-                    }
-                }
+        // Проверка коллизий со стенами
+        function checkCollision(position) {
+            const playerRadius = 0.4;
+            for (let wall of walls) {
+                const box = new THREE.Box3().setFromObject(wall);
+                const closestPoint = new THREE.Vector3().copy(position).clamp(box.min, box.max);
+                if (position.distanceTo(closestPoint) < playerRadius) return true;
             }
             return false;
         }
 
-        function updatePhysics() {
-            if (!controls.isLocked || isInventoryOpen) return;
-
-            // Спринт и приседание
-            targetPlayerHeight = keys.shift ? 1.2 : 1.6;
-            playerHeight += (targetPlayerHeight - playerHeight) * 0.2;
-
-            const currentSpeed = keys.shift ? baseMoveSpeed * 0.4 : (isSprinting ? baseMoveSpeed * 1.5 : baseMoveSpeed);
-
-            velocity.x -= velocity.x * 0.1;
-            velocity.z -= velocity.z * 0.1;
-            velocity.y -= gravity;
-
-            direction.z = Number(keys.w) - Number(keys.s);
-            direction.x = Number(keys.d) - Number(keys.a);
-            direction.normalize();
-
-            if (keys.w || keys.s) velocity.z -= direction.z * currentSpeed;
-            if (keys.a || keys.d) velocity.x -= direction.x * currentSpeed;
-
-            if (keys.space && isGrounded) {
-                velocity.y = jumpForce;
-                isGrounded = false;
-            }
-
-            // Движение X
-            camera.position.x += velocity.x;
-            if (checkCollision(camera.position)) {
-                camera.position.x -= velocity.x;
-                velocity.x = 0;
-            }
-
-            // Движение Z
-            camera.position.z += velocity.z;
-            if (checkCollision(camera.position)) {
-                camera.position.z -= velocity.z;
-                velocity.z = 0;
-            }
-
-            // Движение Y (Гравитация)
-            camera.position.y += velocity.y;
-            if (checkCollision(camera.position)) {
-                if (velocity.y < 0) isGrounded = true;
-                camera.position.y -= velocity.y;
-                velocity.y = 0;
-            } else {
-                isGrounded = false;
-            }
-
-            // Спасение при падении сквозь текстуры
-            if (camera.position.y < -30) resetPlayerPosition();
-        }
-
-        function updateRaycastHighlight() {
-            if (!controls.isLocked || isInventoryOpen) { blockOutline.visible = false; return; }
-
-            const raycaster = new THREE.Raycaster();
-            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-            const intersects = raycaster.intersectObjects(scene.children, true);
-
-            if (intersects.length > 0 && intersects[0].distance < 5) {
-                const hit = intersects[0];
-                if (hit.object === sunMesh || hit.object === moonMesh || hit.object === blockOutline) return;
-
-                const pos = hit.point.clone().add(hit.face.normal.clone().multiplyScalar(-0.5)).floor();
-                if (worldBlocks.has(`${pos.x},${pos.y},${pos.z}`)) {
-                    blockOutline.position.set(pos.x + 0.5, pos.y + 0.5, pos.z + 0.5);
-                    blockOutline.visible = true;
-                    return;
-                }
-            }
-            blockOutline.visible = false;
-        }
-
-        let lastTime = performance.now();
-        let frames = 0;
+        // Цикл Обновления / Анимация
+        const clock = new THREE.Clock();
 
         function animate() {
             requestAnimationFrame(animate);
+            if (!gameActive) return;
 
-            updatePhysics();
-            updateRaycastHighlight();
-            updateMiningProgress();
-            updateSkyCycle();
-            updateDroppedItems();
-            updateMobs();
+            const delta = clock.getDelta();
+            
+            // Логика Стамины и Бега
+            let speed = 3.5;
+            if (isSprinting && stamina > 0 && (moveForward || moveBackward || moveLeft || moveRight)) {
+                speed = 6.5; stamina -= 30 * delta;
+            } else if (stamina < 100) {
+                stamina += 15 * delta;
+            }
+            document.getElementById('stamina-bar').style.width = `${Math.max(0, stamina)}%`;
 
-            // Счётчик FPS
-            frames++;
-            const time = performance.now();
-            if (time >= lastTime + 1000) {
-                document.getElementById('debug-fps').innerText = frames;
-                document.getElementById('debug-coords').innerText = 
-                    `${Math.floor(camera.position.x)} / ${Math.floor(camera.position.y)} / ${Math.floor(camera.position.z)}`;
-                frames = 0;
-                lastTime = time;
+            // Перемещение Игрока
+            const dir = new THREE.Vector3();
+            if (moveForward) dir.z += 1; if (moveBackward) dir.z -= 1;
+            if (moveLeft) dir.x -= 1; if (moveRight) dir.x += 1;
+            dir.normalize();
+
+            if (moveForward || moveBackward || moveLeft || moveRight) {
+                const oldPos = camera.position.clone();
+                controls.moveForward(dir.z * speed * delta);
+                controls.moveRight(dir.x * speed * delta);
+
+                // Если врезался в стену — отменяем шаг
+                if (checkCollision(camera.position)) {
+                    camera.position.copy(oldPos);
+                }
+            }
+
+            // Привязка фонарика к камере
+            flashlight.position.copy(camera.position);
+            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+            flashlight.target.position.copy(camera.position).add(forward);
+
+            // Логика Сбора Кассет
+            tapes.forEach(t => {
+                if (!t.collected && camera.position.distanceTo(t.mesh.position) < 1.5) {
+                    t.collected = true;
+                    scene.remove(t.mesh); scene.remove(t.light);
+                    tapesCollected++;
+                    playSound('pickup');
+                    document.getElementById('tape-count').innerText = `${tapesCollected} / 5`;
+
+                    if (tapesCollected === 5) {
+                        gameActive = false; controls.unlock();
+                        document.getElementById('win-screen').style.display = 'flex';
+                    }
+                }
+            });
+
+            // ИИ Монстра (Погоня за игроком)
+            const distToMonster = monsterGroup.position.distanceTo(camera.position);
+            if (distToMonster < 25) { // Монстр начинает преследование, если игрок рядом
+                const monsterDir = new THREE.Vector3().subVectors(camera.position, monsterGroup.position).normalize();
+                monsterGroup.position.add(monsterDir.multiplyScalar(3.2 * delta)); // Скорость монстра
+                monsterGroup.lookAt(camera.position.x, monsterGroup.position.y, camera.position.z);
+            }
+
+            // Поражение (Монстр поймал игрока)
+            if (distToMonster < 1.2) {
+                gameActive = false;
+                playSound('scare');
+                document.getElementById('jumpscare-overlay').style.display = 'flex';
+                setTimeout(() => {
+                    document.getElementById('jumpscare-overlay').style.display = 'none';
+                    document.getElementById('gameover-screen').style.display = 'flex';
+                    controls.unlock();
+                }, 800);
             }
 
             renderer.render(scene, camera);
         }
 
+        animate();
+
+        // Адаптивность окна
         window.addEventListener('resize', () => {
-            if (!camera || !renderer) return;
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
