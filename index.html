@@ -12,7 +12,6 @@
         }
         #game-container { width: 100vw; height: 100vh; display: block; }
         
-        /* Прицел и ИНФО */
         #crosshair {
             position: absolute; top: 50%; left: 50%;
             width: 8px; height: 8px; background: rgba(255, 255, 255, 0.5);
@@ -33,7 +32,6 @@
         }
         #stamina-bar { width: 100%; height: 100%; background: #e0d080; }
 
-        /* Экран старта и конца игры */
         .overlay-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(10, 10, 8, 0.95); display: flex; flex-direction: column;
@@ -75,7 +73,7 @@
     <div id="start-screen" class="overlay-screen">
         <h1>THE BACKROOMS</h1>
         <p>Вы провалились сквозь реальность на Уровень 0.<br>Исследуйте бесконечный лабиринт, найдите <b>5 VHS-кассет</b> и избегайте того, кто блуждает в темноте.</p>
-        <p style="color:#888; font-size: 13px;">Управление: WASD — движение | Shift — бег | Мышь — обзор</p>
+        <p style="color:#888; font-size: 13px;">Управление: WASD / Стрелки — движение | Shift — бег | Мышь — обзор</p>
         <button class="btn" id="start-btn">ВОЙТИ В ЗАКУЛИСЬЕ</button>
     </div>
 
@@ -98,35 +96,87 @@
     <div id="game-container"></div>
 
     <script>
-        // --- 1. ГЕНЕРАЦИЯ РЕАЛИСТИЧНЫХ ТЕКСТУР ---
+        // --- 1. УЛУЧШЕННЫЕ РЕАЛИСТИЧНЫЕ ТЕКСТУРЫ ---
         function createTexture(type) {
             const canvas = document.createElement('canvas');
-            canvas.width = 512; canvas.height = 512;
+            canvas.width = 1024; canvas.height = 1024;
             const ctx = canvas.getContext('2d');
 
             if (type === 'wall') {
-                // Жёлтые обои с полосками и шумом
-                ctx.fillStyle = '#bfa648'; ctx.fillRect(0, 0, 512, 512);
-                ctx.fillStyle = '#a8903b';
-                for (let i = 0; i < 512; i += 16) ctx.fillRect(i, 0, 8, 512);
-                // Шум и грязь
-                for (let i = 0; i < 8000; i++) {
-                    ctx.fillStyle = Math.random() > 0.5 ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.03)';
-                    ctx.fillRect(Math.random()*512, Math.random()*512, 3, 3);
+                // Старые монотонные жёлтые обои с паттерном ромбов и грязи
+                ctx.fillStyle = '#b39b3b'; ctx.fillRect(0, 0, 1024, 1024);
+                
+                // Текстурный узор
+                ctx.strokeStyle = '#9c842e';
+                ctx.lineWidth = 3;
+                for (let x = 0; x < 1024; x += 32) {
+                    for (let y = 0; y < 1024; y += 32) {
+                        ctx.beginPath();
+                        ctx.moveTo(x + 16, y); ctx.lineTo(x + 32, y + 16);
+                        ctx.lineTo(x + 16, y + 32); ctx.lineTo(x, y + 16);
+                        ctx.closePath();
+                        ctx.stroke();
+                    }
                 }
+
+                // Потёки и грязь
+                for (let i = 0; i < 30; i++) {
+                    const gx = Math.random() * 1024;
+                    const gy = Math.random() * 1024;
+                    const grad = ctx.createRadialGradient(gx, gy, 5, gx, gy, 80 + Math.random() * 100);
+                    grad.addColorStop(0, 'rgba(40, 30, 10, 0.35)');
+                    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                    ctx.fillStyle = grad;
+                    ctx.beginPath(); ctx.arc(gx, gy, 180, 0, Math.PI * 2); ctx.fill();
+                }
+
+                // Шум для зернистости
+                const imgData = ctx.getImageData(0, 0, 1024, 1024);
+                for (let i = 0; i < imgData.data.length; i += 4) {
+                    const noise = (Math.random() - 0.5) * 25;
+                    imgData.data[i] += noise;
+                    imgData.data[i+1] += noise;
+                    imgData.data[i+2] += noise;
+                }
+                ctx.putImageData(imgData, 0, 0);
+
             } else if (type === 'floor') {
-                // Мокрый старый ковер
-                ctx.fillStyle = '#4a422d'; ctx.fillRect(0, 0, 512, 512);
-                for (let i = 0; i < 15000; i++) {
-                    ctx.fillStyle = Math.random() > 0.5 ? '#3b3422' : '#595037';
-                    ctx.fillRect(Math.random()*512, Math.random()*512, 2, 2);
+                // Влажный старый ворсистый ковёр
+                ctx.fillStyle = '#3a3320'; ctx.fillRect(0, 0, 1024, 1024);
+
+                // Пятна сырости
+                for (let i = 0; i < 40; i++) {
+                    const gx = Math.random() * 1024;
+                    const gy = Math.random() * 1024;
+                    const grad = ctx.createRadialGradient(gx, gy, 10, gx, gy, 120);
+                    grad.addColorStop(0, 'rgba(15, 12, 5, 0.7)');
+                    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                    ctx.fillStyle = grad;
+                    ctx.beginPath(); ctx.arc(gx, gy, 120, 0, Math.PI * 2); ctx.fill();
                 }
+
+                // Текстура ворса
+                for (let i = 0; i < 60000; i++) {
+                    ctx.fillStyle = Math.random() > 0.5 ? '#2b2516' : '#4a422d';
+                    ctx.fillRect(Math.random() * 1024, Math.random() * 1024, 2, 2);
+                }
+
             } else if (type === 'ceiling') {
-                // Плиточный потолок с сеткой
-                ctx.fillStyle = '#cfcba8'; ctx.fillRect(0, 0, 512, 512);
-                ctx.strokeStyle = '#8c886b'; ctx.lineWidth = 4;
-                ctx.strokeRect(0, 0, 512, 512); ctx.strokeRect(0, 0, 256, 256);
-                ctx.strokeRect(256, 0, 256, 256); ctx.strokeRect(0, 256, 256, 256);
+                // Потолочная плитка с решеткой и следами воды
+                ctx.fillStyle = '#b8b495'; ctx.fillRect(0, 0, 1024, 1024);
+                
+                // Плиточная сетка
+                ctx.strokeStyle = '#5c5943'; ctx.lineWidth = 8;
+                for (let i = 0; i <= 1024; i += 256) {
+                    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 1024); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(1024, i); ctx.stroke();
+                }
+
+                // Мелкая пористая структура
+                for (let i = 0; i < 20000; i++) {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+                    ctx.fillRect(Math.random() * 1024, Math.random() * 1024, 3, 3);
+                }
             }
 
             const texture = new THREE.CanvasTexture(canvas);
@@ -134,17 +184,16 @@
             return texture;
         }
 
-        // --- 2. АУДИО СИСТЕМА (Звуковой движок Web Audio) ---
+        // --- 2. ЗВУКОВОЙ ДВИЖОК ---
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
 
         function initAudio() {
             audioCtx = new AudioContext();
-            // Гул флуоресцентных ламп
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(50, audioCtx.currentTime); // 50Гц гудение
+            osc.frequency.setValueAtTime(50, audioCtx.currentTime);
             gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
             osc.connect(gain);
             gain.connect(audioCtx.destination);
@@ -174,10 +223,10 @@
             }
         }
 
-        // --- 3. СЦЕНА, КАМЕРА И МИР ---
+        // --- 3. СЦЕНА, КАМЕРА И УПРАВЛЕНИЕ МЫШЬЮ ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x1a1810);
-        scene.fog = new THREE.FogExp2(0x1a1810, 0.08); // Реалистичный туман Закулисья
+        scene.background = new THREE.Color(0x11100b);
+        scene.fog = new THREE.FogExp2(0x11100b, 0.075);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -186,9 +235,10 @@
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         document.getElementById('game-container').appendChild(renderer.domElement);
 
+        // Контроллер захвата мыши для обзора 360 градусов
         const controls = new THREE.PointerLockControls(camera, document.body);
 
-        // --- 4. КАРТА ЛАБИРИНТА (1 = Стена, 0 = Проход) ---
+        // --- 4. КАРТА ЛАБИРИНТА ---
         const mapSize = 15;
         const map = [
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
@@ -208,17 +258,21 @@
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
         ];
 
-        const wallMat = new THREE.MeshStandardMaterial({ map: createTexture('wall'), roughness: 0.8 });
-        wallMat.map.repeat.set(1, 1);
-        const floorMat = new THREE.MeshStandardMaterial({ map: createTexture('floor'), roughness: 0.9 });
-        floorMat.map.repeat.set(12, 12);
-        const ceilMat = new THREE.MeshStandardMaterial({ map: createTexture('ceiling'), roughness: 0.5 });
-        ceilMat.map.repeat.set(12, 12);
+        const wallTexture = createTexture('wall');
+        wallTexture.repeat.set(1, 1);
+        const wallMat = new THREE.MeshStandardMaterial({ map: wallTexture, roughness: 0.85 });
+        
+        const floorTexture = createTexture('floor');
+        floorTexture.repeat.set(8, 8);
+        const floorMat = new THREE.MeshStandardMaterial({ map: floorTexture, roughness: 0.95 });
+
+        const ceilTexture = createTexture('ceiling');
+        ceilTexture.repeat.set(8, 8);
+        const ceilMat = new THREE.MeshStandardMaterial({ map: ceilTexture, roughness: 0.6 });
 
         const blockGeo = new THREE.BoxGeometry(4, 4, 4);
         const walls = [];
 
-        // Построение стен, пола и потолка
         for (let r = 0; r < mapSize; r++) {
             for (let c = 0; c < mapSize; c++) {
                 if (map[r][c] === 1) {
@@ -239,25 +293,25 @@
         ceiling.rotation.x = Math.PI / 2; ceiling.position.set((mapSize*4)/2 - 2, 4, (mapSize*4)/2 - 2);
         scene.add(ceiling);
 
-        // Флуоресцентное освещение (несколько ламп)
+        // Освещение ламп
         const lightPositions = [[4, 4], [20, 20], [40, 10], [10, 40], [50, 50]];
         lightPositions.forEach(pos => {
             const light = new THREE.PointLight(0xfffaed, 0.8, 18);
             light.position.set(pos[0], 3.8, pos[1]);
             scene.add(light);
-            // Визуал лампы
+
             const lamp = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 0.6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
             lamp.position.set(pos[0], 3.95, pos[1]);
             scene.add(lamp);
         });
 
-        // Фонарик игрока
-        const flashlight = new THREE.SpotLight(0xfff5d0, 2, 22, Math.PI / 5, 0.4, 1);
+        // Фонарик
+        const flashlight = new THREE.SpotLight(0xfff5d0, 2.5, 25, Math.PI / 4.5, 0.4, 1);
         flashlight.castShadow = true;
         scene.add(flashlight);
         scene.add(flashlight.target);
 
-        // --- 5. КАССЕТЫ (Предметы для сбора) ---
+        // --- 5. КАССЕТЫ ---
         const tapes = [];
         let tapesCollected = 0;
         const tapeGeo = new THREE.BoxGeometry(0.4, 0.1, 0.25);
@@ -267,7 +321,6 @@
         tapeSpawnCoords.forEach(coord => {
             const tape = new THREE.Mesh(tapeGeo, tapeMat);
             tape.position.set(coord[0], 0.1, coord[1]);
-            // Небольшая светящаяся рамка для облегчения поиска
             const light = new THREE.PointLight(0xffea78, 0.5, 3);
             light.position.set(coord[0], 0.3, coord[1]);
             scene.add(light);
@@ -275,55 +328,53 @@
             tapes.push({ mesh: tape, light: light, collected: false });
         });
 
-        // --- 6. РЕАЛИСТИЧНЫЙ МОНСТР ---
+        // --- 6. МОНСТР ---
         const monsterGroup = new THREE.Group();
-        
-        // Высокая темная гуманоидная сущность
         const bodyMat = new THREE.MeshBasicMaterial({ color: 0x050505 });
-        const bodyGeo = new THREE.CylinderGeometry(0.3, 0.1, 2.8, 8);
-        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.1, 2.8, 8), bodyMat);
         body.position.y = 1.4;
         monsterGroup.add(body);
 
-        // Светящиеся белые глаза
         const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
         const eyeGeo = new THREE.SphereGeometry(0.05, 8, 8);
         const eye1 = new THREE.Mesh(eyeGeo, eyeMat); eye1.position.set(-0.1, 2.4, 0.25);
         const eye2 = new THREE.Mesh(eyeGeo, eyeMat); eye2.position.set(0.1, 2.4, 0.25);
         monsterGroup.add(eye1); monsterGroup.add(eye2);
 
-        monsterGroup.position.set(52, 0, 52); // Старт монстра в дальнем углу
+        monsterGroup.position.set(52, 0, 52);
         scene.add(monsterGroup);
 
-        // --- 7. ИГРОВАЯ ЛОГИКА И УПРАВЛЕНИЕ ---
+        // --- 7. ОБРАБОТКА ДВИЖЕНИЯ И КЛАВИШ ---
         camera.position.set(6, 1.6, 6);
+        
         let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false, isSprinting = false;
         let stamina = 100;
         let gameActive = false;
 
         const onKeyDown = (e) => {
             switch(e.code) {
-                case 'KeyW': moveForward = true; break;
-                case 'KeyS': moveBackward = true; break;
-                case 'KeyA': moveLeft = true; break;
-                case 'KeyD': moveRight = true; break;
-                case 'ShiftLeft': isSprinting = true; break;
+                case 'KeyW': case 'ArrowUp': moveForward = true; break;
+                case 'KeyS': case 'ArrowDown': moveBackward = true; break;
+                case 'KeyA': case 'ArrowLeft': moveLeft = true; break;
+                case 'KeyD': case 'ArrowRight': moveRight = true; break;
+                case 'ShiftLeft': case 'ShiftRight': isSprinting = true; break;
             }
         };
 
         const onKeyUp = (e) => {
             switch(e.code) {
-                case 'KeyW': moveForward = false; break;
-                case 'KeyS': moveBackward = false; break;
-                case 'KeyA': moveLeft = false; break;
-                case 'KeyD': moveRight = false; break;
-                case 'ShiftLeft': isSprinting = false; break;
+                case 'KeyW': case 'ArrowUp': moveForward = false; break;
+                case 'KeyS': case 'ArrowDown': moveBackward = false; break;
+                case 'KeyA': case 'ArrowLeft': moveLeft = false; break;
+                case 'KeyD': case 'ArrowRight': moveRight = false; break;
+                case 'ShiftLeft': case 'ShiftRight': isSprinting = false; break;
             }
         };
 
         document.addEventListener('keydown', onKeyDown);
         document.addEventListener('keyup', onKeyUp);
 
+        // Запуск игры и клик для активации мыши
         document.getElementById('start-btn').addEventListener('click', () => {
             document.getElementById('start-screen').style.display = 'none';
             controls.lock();
@@ -331,7 +382,13 @@
             gameActive = true;
         });
 
-        // Проверка коллизий со стенами
+        // Повторный захват курсора при клике на экран во время игры
+        document.addEventListener('click', () => {
+            if (gameActive && !controls.isLocked) {
+                controls.lock();
+            }
+        });
+
         function checkCollision(position) {
             const playerRadius = 0.4;
             for (let wall of walls) {
@@ -342,7 +399,7 @@
             return false;
         }
 
-        // Цикл Обновления / Анимация
+        // --- 8. ИГРОВОЙ ЦИКЛ ---
         const clock = new THREE.Clock();
 
         function animate() {
@@ -350,8 +407,8 @@
             if (!gameActive) return;
 
             const delta = clock.getDelta();
-            
-            // Логика Стамины и Бега
+
+            // Расчет выносливости
             let speed = 3.5;
             if (isSprinting && stamina > 0 && (moveForward || moveBackward || moveLeft || moveRight)) {
                 speed = 6.5; stamina -= 30 * delta;
@@ -360,29 +417,26 @@
             }
             document.getElementById('stamina-bar').style.width = `${Math.max(0, stamina)}%`;
 
-            // Перемещение Игрока
-            const dir = new THREE.Vector3();
-            if (moveForward) dir.z += 1; if (moveBackward) dir.z -= 1;
-            if (moveLeft) dir.x -= 1; if (moveRight) dir.x += 1;
-            dir.normalize();
-
-            if (moveForward || moveBackward || moveLeft || moveRight) {
+            // Передвижение персонажа
+            if (controls.isLocked) {
                 const oldPos = camera.position.clone();
-                controls.moveForward(dir.z * speed * delta);
-                controls.moveRight(dir.x * speed * delta);
 
-                // Если врезался в стену — отменяем шаг
+                if (moveForward) controls.moveForward(speed * delta);
+                if (moveBackward) controls.moveForward(-speed * delta);
+                if (moveLeft) controls.moveRight(-speed * delta);
+                if (moveRight) controls.moveRight(speed * delta);
+
                 if (checkCollision(camera.position)) {
                     camera.position.copy(oldPos);
                 }
             }
 
-            // Привязка фонарика к камере
+            // Направление фонарика
             flashlight.position.copy(camera.position);
             const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
             flashlight.target.position.copy(camera.position).add(forward);
 
-            // Логика Сбора Кассет
+            // Сбор кассет
             tapes.forEach(t => {
                 if (!t.collected && camera.position.distanceTo(t.mesh.position) < 1.5) {
                     t.collected = true;
@@ -398,15 +452,15 @@
                 }
             });
 
-            // ИИ Монстра (Погоня за игроком)
+            // ИИ Монстра
             const distToMonster = monsterGroup.position.distanceTo(camera.position);
-            if (distToMonster < 25) { // Монстр начинает преследование, если игрок рядом
+            if (distToMonster < 25) {
                 const monsterDir = new THREE.Vector3().subVectors(camera.position, monsterGroup.position).normalize();
-                monsterGroup.position.add(monsterDir.multiplyScalar(3.2 * delta)); // Скорость монстра
+                monsterGroup.position.add(monsterDir.multiplyScalar(3.2 * delta));
                 monsterGroup.lookAt(camera.position.x, monsterGroup.position.y, camera.position.z);
             }
 
-            // Поражение (Монстр поймал игрока)
+            // Поражение
             if (distToMonster < 1.2) {
                 gameActive = false;
                 playSound('scare');
@@ -423,7 +477,6 @@
 
         animate();
 
-        // Адаптивность окна
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
