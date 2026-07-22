@@ -131,12 +131,12 @@ const PLAYER_RADIUS = 0.32;
 const WALK_SPEED   = 3.4;
 const SPRINT_SPEED = 5.6;
 
-const MONSTER_WANDER_SPEED = 2.0;
-const MONSTER_CHASE_SPEED  = 4.5;
-const CHASE_RADIUS_BASE    = 6.5;
-const SPRINT_DETECT_MULT   = 1.7;
-const LOSE_RADIUS          = 12;
-const LOSE_GIVEUP_TIME     = 4.5;
+const MONSTER_WANDER_SPEED = 1.9;
+const MONSTER_CHASE_SPEED  = 4.15;
+const CHASE_RADIUS_BASE    = 5.2;
+const SPRINT_DETECT_MULT   = 1.6;
+const LOSE_RADIUS          = 9;
+const LOSE_GIVEUP_TIME     = 3;
 const KILL_RADIUS          = 1.0;
 
 const TAPE_PICKUP_RADIUS = 1.3;
@@ -178,80 +178,265 @@ window.addEventListener('resize', ()=>{
 /* Свет */
 scene.add(new THREE.AmbientLight(0x554a2c, 0.55));
 
-const flashlight = new THREE.SpotLight(0xfff2cc, 1.4, 20, 0.55, 0.45, 1.4);
-flashlight.position.set(0,0,0);
+const flashlight = new THREE.SpotLight(0xfff2cc, 1.5, 20, 0.5, 0.45, 1.5);
 const flashTarget = new THREE.Object3D();
-flashTarget.position.set(0,0,-1);
+flashTarget.position.set(0.33, -0.34, -6);
 camera.add(flashlight, flashTarget);
 flashlight.target = flashTarget;
 scene.add(camera);
 
-const playerGlow = new THREE.PointLight(0xffdca0, 0.35, 4);
+const playerGlow = new THREE.PointLight(0xffdca0, 0.4, 3.5);
 camera.add(playerGlow);
+
+/* --- Рука игрока с фонариком (первое лицо) --- */
+const handGroup = new THREE.Group();
+const sleeveMat = new THREE.MeshStandardMaterial({ color: 0x2c2820, roughness: 0.85, metalness: 0 });
+const skinMat   = new THREE.MeshStandardMaterial({ color: 0xcf9f79, roughness: 0.55, metalness: 0 });
+const metalMat  = new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.35, metalness: 0.75 });
+const gripMat   = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.7, metalness: 0.2 });
+const lensMat   = new THREE.MeshStandardMaterial({ color: 0xfff6dd, emissive: 0xfff0b8, emissiveIntensity: 2.6, roughness: 0.25 });
+
+const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.095, 0.5, 10), sleeveMat);
+sleeve.rotation.x = -Math.PI/2 + 0.25;
+sleeve.position.set(0, 0.02, 0.18);
+handGroup.add(sleeve);
+
+const palm = new THREE.Mesh(new THREE.SphereGeometry(0.078, 10, 8), skinMat);
+palm.scale.set(1, 0.8, 1.3);
+palm.position.set(0, -0.01, -0.1);
+handGroup.add(palm);
+
+const fingerGeo = new THREE.CylinderGeometry(0.017, 0.02, 0.13, 7);
+for(let f=0; f<3; f++){
+  const finger = new THREE.Mesh(fingerGeo, skinMat);
+  finger.rotation.z = Math.PI/2;
+  finger.position.set((f-1)*0.032, 0.02, -0.24 - f*0.01);
+  handGroup.add(finger);
+}
+const thumb = new THREE.Mesh(fingerGeo, skinMat);
+thumb.rotation.x = 0.9; thumb.rotation.z = 0.5;
+thumb.position.set(-0.06, 0.03, -0.12);
+handGroup.add(thumb);
+
+const flBody = new THREE.Mesh(new THREE.CylinderGeometry(0.033, 0.041, 0.36, 12), metalMat);
+flBody.rotation.x = -Math.PI/2;
+flBody.position.set(0, 0, -0.34);
+handGroup.add(flBody);
+
+const flGrip = new THREE.Mesh(new THREE.CylinderGeometry(0.029, 0.034, 0.1, 12), gripMat);
+flGrip.rotation.x = -Math.PI/2;
+flGrip.position.set(0, 0, -0.1);
+handGroup.add(flGrip);
+
+const flLensRing = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.038, 0.02, 12), metalMat);
+flLensRing.rotation.x = -Math.PI/2;
+flLensRing.position.set(0, 0, -0.51);
+handGroup.add(flLensRing);
+
+const flLens = new THREE.Mesh(new THREE.CircleGeometry(0.033, 12), lensMat);
+flLens.position.set(0, 0, -0.521);
+handGroup.add(flLens);
+
+const HAND_BASE_POS = { x: 0.33, y: -0.34, z: -0.5 };
+const HAND_BASE_ROT = { x: 0.05, y: -0.12, z: 0.07 };
+handGroup.position.set(HAND_BASE_POS.x, HAND_BASE_POS.y, HAND_BASE_POS.z);
+handGroup.rotation.set(HAND_BASE_ROT.x, HAND_BASE_ROT.y, HAND_BASE_ROT.z);
+camera.add(handGroup);
+
+flashlight.position.set(0.33, -0.34, -0.95);
+playerGlow.position.set(0.33, -0.34, -0.9);
 
 /* ============================================================
    ПРОЦЕДУРНЫЕ ТЕКСТУРЫ
 ============================================================ */
-function makeCanvas(){ const c=document.createElement('canvas'); c.width=256; c.height=256; return c; }
-
-function makeWallTexture(){
-  const c = makeCanvas(); const ctx = c.getContext('2d');
-  ctx.fillStyle = '#a4934f'; ctx.fillRect(0,0,256,256);
-  for(let k=0;k<45;k++){
-    const x=Math.random()*256, y=Math.random()*256, r=8+Math.random()*32;
-    const g = ctx.createRadialGradient(x,y,0,x,y,r);
-    const a = (0.04+Math.random()*0.18).toFixed(2);
-    g.addColorStop(0, `rgba(55,45,15,${a})`);
-    g.addColorStop(1, 'rgba(55,45,15,0)');
-    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
-  }
-  ctx.strokeStyle='rgba(0,0,0,0.06)';
-  for(let x=0;x<256;x+=14){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,256); ctx.stroke(); }
-  const tex = new THREE.CanvasTexture(c);
+function makeCanvas(size){ const c=document.createElement('canvas'); c.width=size; c.height=size; return c; }
+const maxAniso = renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 4;
+function finishTex(tex, repeatX, repeatY){
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(2,1);
+  tex.repeat.set(repeatX, repeatY);
+  tex.anisotropy = maxAniso;
   return tex;
 }
 
-function makeFloorTexture(){
-  const c = makeCanvas(); const ctx = c.getContext('2d');
-  ctx.fillStyle = '#5c5028'; ctx.fillRect(0,0,256,256);
-  for(let k=0;k<2500;k++){
-    ctx.fillStyle = `rgba(0,0,0,${(Math.random()*0.09).toFixed(2)})`;
-    ctx.fillRect(Math.random()*256, Math.random()*256, 1.4, 1.4);
-  }
-  for(let k=0;k<14;k++){
-    const x=Math.random()*256, y=Math.random()*256, r=8+Math.random()*22;
-    const g = ctx.createRadialGradient(x,y,0,x,y,r);
-    g.addColorStop(0,'rgba(15,10,5,0.25)'); g.addColorStop(1,'rgba(15,10,5,0)');
-    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
-  }
-  const tex = new THREE.CanvasTexture(c);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(MAZE_SIZE, MAZE_SIZE);
-  return tex;
-}
+/* ---- СТЕНЫ: старые жёлтые обои с потёками, пятнами и тиснением ---- */
+function makeWallMaps(){
+  const S = 512;
+  const c = makeCanvas(S), ctx = c.getContext('2d');
+  const b = makeCanvas(S), bctx = b.getContext('2d');
 
-function makeCeilingTexture(){
-  const c = makeCanvas(); const ctx = c.getContext('2d');
-  ctx.fillStyle = '#cdc7a4'; ctx.fillRect(0,0,256,256);
-  ctx.strokeStyle='rgba(0,0,0,0.28)'; ctx.lineWidth=3;
-  for(let x=0;x<=256;x+=64){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,256); ctx.stroke(); }
-  for(let y=0;y<=256;y+=64){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(256,y); ctx.stroke(); }
+  // базовый неровный цвет (пятна выцветания)
+  ctx.fillStyle = '#a89454'; ctx.fillRect(0,0,S,S);
+  bctx.fillStyle = '#808080'; bctx.fillRect(0,0,S,S);
   for(let k=0;k<10;k++){
-    const x=Math.random()*256, y=Math.random()*256, r=5+Math.random()*14;
-    ctx.fillStyle='rgba(110,90,30,0.18)';
-    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+    const x=Math.random()*S, y=Math.random()*S, r=60+Math.random()*140;
+    const g = ctx.createRadialGradient(x,y,0,x,y,r);
+    const shade = Math.random()<0.5 ? '90,78,38' : '178,158,92';
+    g.addColorStop(0, `rgba(${shade},0.12)`); g.addColorStop(1, `rgba(${shade},0)`);
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
   }
-  const tex = new THREE.CanvasTexture(c);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(MAZE_SIZE, MAZE_SIZE);
-  return tex;
+
+  // тиснёные вертикальные полосы обоев (диффуз + рельеф)
+  const stripeW = 18;
+  for(let x=0;x<S;x+=stripeW){
+    const lighter = (x/stripeW)%2===0;
+    ctx.fillStyle = lighter ? 'rgba(255,245,210,0.05)' : 'rgba(40,30,10,0.05)';
+    ctx.fillRect(x,0,stripeW/2,S);
+    bctx.fillStyle = lighter ? '#9a9a9a' : '#6c6c6c';
+    bctx.fillRect(x,0,stripeW/2,S);
+  }
+
+  // разводы от сырости, стекающие сверху и снизу
+  for(let k=0;k<26;k++){
+    const x = Math.random()*S;
+    const topDown = Math.random()<0.5;
+    const len = 80+Math.random()*220;
+    const y0 = topDown ? 0 : S-len;
+    const w = 4+Math.random()*10;
+    const g = ctx.createLinearGradient(0,y0,0,y0+len);
+    g.addColorStop(0, 'rgba(50,40,15,0.22)');
+    g.addColorStop(1, 'rgba(50,40,15,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(x-w/2,y0); ctx.quadraticCurveTo(x+Math.random()*10-5, y0+len/2, x+Math.random()*w-w/2, y0+len);
+    ctx.lineTo(x+w, y0+len); ctx.lineTo(x+w/2, y0);
+    ctx.fill();
+    bctx.fillStyle='rgba(0,0,0,0.15)'; ctx.save();
+  }
+
+  // крупные пятна плесени/грязи
+  for(let k=0;k<32;k++){
+    const x=Math.random()*S, y=Math.random()*S, r=6+Math.random()*30;
+    const g = ctx.createRadialGradient(x,y,0,x,y,r);
+    const a = (0.05+Math.random()*0.2).toFixed(2);
+    g.addColorStop(0, `rgba(45,38,14,${a})`);
+    g.addColorStop(1, 'rgba(45,38,14,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+    bctx.fillStyle = `rgba(0,0,0,${0.08+Math.random()*0.15})`;
+    bctx.beginPath(); bctx.arc(x,y,r*0.7,0,Math.PI*2); bctx.fill();
+  }
+
+  // мелкое зерно (шум обоев)
+  const grain = ctx.getImageData(0,0,S,S);
+  for(let i=0;i<grain.data.length;i+=4){
+    const n = (Math.random()-0.5)*14;
+    grain.data[i]+=n; grain.data[i+1]+=n*0.9; grain.data[i+2]+=n*0.6;
+  }
+  ctx.putImageData(grain,0,0);
+  for(let i=0;i<40000;i++){
+    const x=Math.random()*S, y=Math.random()*S;
+    bctx.fillStyle = `rgba(255,255,255,${Math.random()*0.06})`;
+    bctx.fillRect(x,y,1,1);
+  }
+
+  return {
+    map: finishTex(new THREE.CanvasTexture(c), 3, 1.4),
+    bump: finishTex(new THREE.CanvasTexture(b), 3, 1.4)
+  };
 }
 
-const wallMaterial = new THREE.MeshStandardMaterial({ map: makeWallTexture(), roughness:0.95, metalness:0 });
-const floorMaterial = new THREE.MeshStandardMaterial({ map: makeFloorTexture(), roughness:0.9, metalness:0 });
-const ceilingMaterial = new THREE.MeshStandardMaterial({ map: makeCeilingTexture(), roughness:0.85, metalness:0 });
+/* ---- ПОЛ: грязный ковролин с ворсом, пятнами и швами плитки ---- */
+function makeFloorMaps(){
+  const S = 512;
+  const c = makeCanvas(S), ctx = c.getContext('2d');
+  const b = makeCanvas(S), bctx = b.getContext('2d');
+
+  ctx.fillStyle = '#4f4322'; ctx.fillRect(0,0,S,S);
+  bctx.fillStyle = '#808080'; bctx.fillRect(0,0,S,S);
+
+  // ворс ковра - множество коротких штрихов случайной ориентации
+  for(let i=0;i<9000;i++){
+    const x=Math.random()*S, y=Math.random()*S;
+    const len = 1.5+Math.random()*2.5;
+    const ang = Math.random()*Math.PI*2;
+    const shade = 20+Math.random()*40;
+    ctx.strokeStyle = `rgba(${shade+40},${shade+30},${shade},${0.15+Math.random()*0.2})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x,y); ctx.lineTo(x+Math.cos(ang)*len, y+Math.sin(ang)*len);
+    ctx.stroke();
+    bctx.strokeStyle = `rgba(255,255,255,${0.05+Math.random()*0.1})`;
+    bctx.beginPath(); bctx.moveTo(x,y); bctx.lineTo(x+Math.cos(ang)*len, y+Math.sin(ang)*len); bctx.stroke();
+  }
+
+  // швы плитки ковра
+  const tile = 128;
+  ctx.strokeStyle = 'rgba(15,10,5,0.35)'; ctx.lineWidth = 2;
+  bctx.strokeStyle = 'rgba(0,0,0,0.5)'; bctx.lineWidth = 2;
+  for(let x=0;x<=S;x+=tile){
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,S); ctx.stroke();
+    bctx.beginPath(); bctx.moveTo(x,0); bctx.lineTo(x,S); bctx.stroke();
+  }
+  for(let y=0;y<=S;y+=tile){
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(S,y); ctx.stroke();
+    bctx.beginPath(); bctx.moveTo(0,y); bctx.lineTo(S,y); bctx.stroke();
+  }
+
+  // тёмные разводы и старые пятна
+  for(let k=0;k<20;k++){
+    const x=Math.random()*S, y=Math.random()*S, r=10+Math.random()*36;
+    const g = ctx.createRadialGradient(x,y,0,x,y,r);
+    g.addColorStop(0,'rgba(10,8,3,0.3)'); g.addColorStop(1,'rgba(10,8,3,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+  }
+
+  return {
+    map: finishTex(new THREE.CanvasTexture(c), MAZE_SIZE, MAZE_SIZE),
+    bump: finishTex(new THREE.CanvasTexture(b), MAZE_SIZE, MAZE_SIZE)
+  };
+}
+
+/* ---- ПОТОЛОК: подвесные плиты типа "акустика" с потёками ---- */
+function makeCeilingMaps(){
+  const S = 512;
+  const c = makeCanvas(S), ctx = c.getContext('2d');
+  const b = makeCanvas(S), bctx = b.getContext('2d');
+
+  ctx.fillStyle = '#d4cda6'; ctx.fillRect(0,0,S,S);
+  bctx.fillStyle = '#808080'; bctx.fillRect(0,0,S,S);
+
+  // мелкая стипль-текстура акустической плитки
+  for(let i=0;i<14000;i++){
+    const x=Math.random()*S, y=Math.random()*S;
+    const shade = Math.random()<0.5 ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
+    ctx.fillStyle = shade; ctx.fillRect(x,y,1,1);
+    bctx.fillStyle = `rgba(0,0,0,${Math.random()*0.12})`;
+    bctx.fillRect(x,y,1,1);
+  }
+
+  // швы между плитами (тёмная выемка)
+  const tile = 128;
+  ctx.strokeStyle='rgba(0,0,0,0.32)'; ctx.lineWidth=3;
+  bctx.strokeStyle='rgba(0,0,0,0.7)'; bctx.lineWidth=4;
+  for(let x=0;x<=S;x+=tile){
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,S); ctx.stroke();
+    bctx.beginPath(); bctx.moveTo(x,0); bctx.lineTo(x,S); bctx.stroke();
+  }
+  for(let y=0;y<=S;y+=tile){
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(S,y); ctx.stroke();
+    bctx.beginPath(); bctx.moveTo(0,y); bctx.lineTo(S,y); bctx.stroke();
+  }
+
+  // жёлто-бурые водные пятна
+  for(let k=0;k<12;k++){
+    const x=Math.random()*S, y=Math.random()*S, r=8+Math.random()*26;
+    const g = ctx.createRadialGradient(x,y,0,x,y,r);
+    g.addColorStop(0,'rgba(120,95,30,0.25)'); g.addColorStop(0.7,'rgba(90,70,20,0.12)'); g.addColorStop(1,'rgba(90,70,20,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+  }
+
+  return {
+    map: finishTex(new THREE.CanvasTexture(c), MAZE_SIZE, MAZE_SIZE),
+    bump: finishTex(new THREE.CanvasTexture(b), MAZE_SIZE, MAZE_SIZE)
+  };
+}
+
+const wallMaps = makeWallMaps();
+const floorMaps = makeFloorMaps();
+const ceilingMaps = makeCeilingMaps();
+
+const wallMaterial = new THREE.MeshStandardMaterial({ map: wallMaps.map, bumpMap: wallMaps.bump, bumpScale: 0.045, roughness:0.92, metalness:0.02 });
+const floorMaterial = new THREE.MeshStandardMaterial({ map: floorMaps.map, bumpMap: floorMaps.bump, bumpScale: 0.03, roughness:0.95, metalness:0 });
+const ceilingMaterial = new THREE.MeshStandardMaterial({ map: ceilingMaps.map, bumpMap: ceilingMaps.bump, bumpScale: 0.035, roughness:0.88, metalness:0 });
 
 /* ============================================================
    ГЕНЕРАЦИЯ ЛАБИРИНТА (recursive backtracker + немного петель)
@@ -505,45 +690,119 @@ scene.add(doorLight);
 /* ============================================================
    МОНСТР
 ============================================================ */
-const monsterGroup = new THREE.Group();
-const darkMat = new THREE.MeshStandardMaterial({ color: 0x080808, roughness:0.9 });
-const eyeMat = new THREE.MeshStandardMaterial({ color: 0x330000, emissive: 0xff1111, emissiveIntensity: 2 });
+function makeSkinMaps(){
+  const S = 256;
+  const c = makeCanvas(S), ctx = c.getContext('2d');
+  const b = makeCanvas(S), bctx = b.getContext('2d');
+  ctx.fillStyle = '#1a1512'; ctx.fillRect(0,0,S,S);
+  bctx.fillStyle = '#808080'; bctx.fillRect(0,0,S,S);
+  // мёртвая, гнилая кожа - пятна
+  for(let k=0;k<50;k++){
+    const x=Math.random()*S, y=Math.random()*S, r=6+Math.random()*22;
+    const g = ctx.createRadialGradient(x,y,0,x,y,r);
+    const tone = Math.random()<0.5 ? '35,15,12' : '10,18,12';
+    g.addColorStop(0, `rgba(${tone},0.35)`); g.addColorStop(1, `rgba(${tone},0)`);
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+    bctx.fillStyle = `rgba(0,0,0,${0.1+Math.random()*0.2})`;
+    bctx.beginPath(); bctx.arc(x,y,r*0.8,0,Math.PI*2); bctx.fill();
+  }
+  // тонкие вены
+  for(let k=0;k<30;k++){
+    const x=Math.random()*S, y=Math.random()*S;
+    ctx.strokeStyle = 'rgba(70,10,10,0.25)'; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(x,y);
+    ctx.quadraticCurveTo(x+Math.random()*20-10, y+Math.random()*20-10, x+Math.random()*30-15, y+Math.random()*30-15);
+    ctx.stroke();
+  }
+  // морщины/рельеф
+  for(let k=0;k<200;k++){
+    const x=Math.random()*S, y=Math.random()*S, len=2+Math.random()*6, ang=Math.random()*Math.PI*2;
+    bctx.strokeStyle = `rgba(255,255,255,${Math.random()*0.12})`;
+    bctx.beginPath(); bctx.moveTo(x,y); bctx.lineTo(x+Math.cos(ang)*len,y+Math.sin(ang)*len); bctx.stroke();
+  }
+  const grain = ctx.getImageData(0,0,S,S);
+  for(let i=0;i<grain.data.length;i+=4){
+    const n=(Math.random()-0.5)*10;
+    grain.data[i]+=n; grain.data[i+1]+=n; grain.data[i+2]+=n;
+  }
+  ctx.putImageData(grain,0,0);
+  return { map: finishTex(new THREE.CanvasTexture(c),1,1), bump: finishTex(new THREE.CanvasTexture(b),1,1) };
+}
 
-const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.34, 1.3, 8), darkMat);
-torso.position.y = 1.0;
+const monsterGroup = new THREE.Group();
+const skinMaps = makeSkinMaps();
+const darkMat = new THREE.MeshStandardMaterial({ map: skinMaps.map, bumpMap: skinMaps.bump, bumpScale:0.02, color: 0x2a2220, roughness:0.92, metalness:0 });
+const eyeMat = new THREE.MeshStandardMaterial({ color: 0x1a0505, emissive: 0xaa1500, emissiveIntensity: 1.3, roughness:0.6 });
+const mouthMat = new THREE.MeshStandardMaterial({ color: 0x050202, roughness:1 });
+
+// Сутулый торс, чуть наклонённый вперёд
+const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.2, 1.15, 10), darkMat);
+torso.position.y = 1.15;
+torso.rotation.x = 0.16;
 monsterGroup.add(torso);
 
-const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 10), darkMat);
-head.position.y = 1.78;
+// Шея
+const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 0.22, 8), darkMat);
+neck.position.set(0, 1.72, -0.05);
+neck.rotation.x = 0.35;
+monsterGroup.add(neck);
+
+// Вытянутая, слегка наклонённая вперёд голова
+const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 12), darkMat);
+head.scale.set(0.85, 1.25, 0.95);
+head.position.set(0, 1.95, -0.12);
+head.rotation.x = 0.3;
 monsterGroup.add(head);
 
-const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 6), eyeMat);
-eyeL.position.set(-0.08, 1.8, -0.19);
+// Тлеющие впалые глаза (не яркие шары, а слабое свечение из тени)
+const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.028, 6, 6), eyeMat);
+eyeL.position.set(-0.075, 1.98, -0.28);
 monsterGroup.add(eyeL);
 const eyeR = eyeL.clone();
-eyeR.position.x = 0.08;
+eyeR.position.x = 0.075;
 monsterGroup.add(eyeR);
 
-const armGeo = new THREE.CylinderGeometry(0.045, 0.06, 1.15, 6);
-const armL = new THREE.Mesh(armGeo, darkMat);
-armL.position.set(-0.32, 1.05, 0);
-armL.rotation.z = 0.18;
+// Щель рта
+const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, 0.03), mouthMat);
+mouth.position.set(0, 1.86, -0.31);
+mouth.rotation.x = 0.3;
+monsterGroup.add(mouth);
+
+// Длинные, неестественные руки (доходят почти до колен)
+function buildArm(side){
+  const group = new THREE.Group();
+  const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.042, 0.7, 6), darkMat);
+  upper.position.y = -0.35;
+  group.add(upper);
+  const lower = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.03, 0.65, 6), darkMat);
+  lower.position.y = -0.72 - 0.32;
+  group.add(lower);
+  for(let f=0;f<3;f++){
+    const finger = new THREE.Mesh(new THREE.ConeGeometry(0.014, 0.14, 5), darkMat);
+    finger.position.set((f-1)*0.03, -0.72-0.65-0.07, 0);
+    finger.rotation.x = Math.PI;
+    group.add(finger);
+  }
+  group.position.set(side*0.34, 1.55, 0);
+  group.rotation.z = side * 0.1;
+  return group;
+}
+const armL = buildArm(-1);
 monsterGroup.add(armL);
-const armR = armL.clone();
-armR.position.x = 0.32;
-armR.rotation.z = -0.18;
+const armR = buildArm(1);
 monsterGroup.add(armR);
 
-const legGeo = new THREE.CylinderGeometry(0.07, 0.06, 0.85, 6);
+// Тонкие ноги
+const legGeo = new THREE.CylinderGeometry(0.065, 0.05, 0.95, 6);
 const legL = new THREE.Mesh(legGeo, darkMat);
-legL.position.set(-0.13, 0.42, 0);
+legL.position.set(-0.12, 0.47, 0);
 monsterGroup.add(legL);
 const legR = legL.clone();
-legR.position.x = 0.13;
+legR.position.x = 0.12;
 monsterGroup.add(legR);
 
-const monsterLight = new THREE.PointLight(0xff2200, 0.5, 4);
-monsterLight.position.y = 1.8;
+const monsterLight = new THREE.PointLight(0xff2200, 0.45, 4);
+monsterLight.position.y = 1.9;
 monsterGroup.add(monsterLight);
 
 scene.add(monsterGroup);
@@ -834,6 +1093,18 @@ function updatePlayer(dt){
   const bob = moving ? Math.sin(bobPhase) * 0.045 : 0;
   camera.position.set(player.x, EYE_HEIGHT + bob, player.z);
 
+  // покачивание руки с фонариком: шаг + лёгкое дыхание в покое
+  const idle = performance.now() * 0.0012;
+  if(moving){
+    handGroup.position.x = HAND_BASE_POS.x + Math.sin(bobPhase*0.5) * 0.012;
+    handGroup.position.y = HAND_BASE_POS.y + Math.abs(Math.sin(bobPhase)) * 0.02;
+    handGroup.rotation.z = HAND_BASE_ROT.z + Math.sin(bobPhase*0.5) * 0.035;
+  } else {
+    handGroup.position.x = HAND_BASE_POS.x + Math.sin(idle) * 0.004;
+    handGroup.position.y = HAND_BASE_POS.y + Math.sin(idle*1.3) * 0.006;
+    handGroup.rotation.z = HAND_BASE_ROT.z + Math.sin(idle) * 0.01;
+  }
+
   return sprinting;
 }
 
@@ -938,6 +1209,10 @@ function updateMonster(dt, sprinting){
 
   monsterGroup.position.set(monster.x, 0, monster.z);
   monsterGroup.rotation.y = monster.facing;
+
+  // тлеющие глаза чуть пульсируют, как будто существо дышит
+  const breathe = 1.0 + Math.sin(performance.now()*0.004) * 0.35;
+  eyeMat.emissiveIntensity = (monster.state === 'chase' ? 2.0 : 1.2) * breathe;
 
   // звук сердцебиения и виньетка при опасности
   const awarenessRadius = 16;
