@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Backrooms: 5 Tapes Horror</title>
     <style>
+        * { box-sizing: border-box; }
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
             overflow: hidden; background-color: #000;
@@ -14,7 +15,7 @@
         
         #crosshair {
             position: absolute; top: 50%; left: 50%;
-            width: 8px; height: 8px; background: rgba(255, 255, 255, 0.6);
+            width: 8px; height: 8px; background: rgba(255, 255, 255, 0.7);
             border-radius: 50%; transform: translate(-50%, -50%);
             pointer-events: none; z-index: 10;
         }
@@ -60,7 +61,7 @@
 
     <div id="hud">
         Кассеты: <span id="tape-count" style="color:#ffea78; font-weight:bold;">0 / 5</span><br>
-        <span id="prompt-text" style="font-size: 13px; color: #888;">Найдите 5 кассет VHS в лабиринте</span>
+        <span id="prompt-text" style="font-size: 13px; color: #888;">Найдите 5 VHS-кассет в лабиринте</span>
     </div>
 
     <div id="crosshair"></div>
@@ -71,77 +72,66 @@
 
     <div id="start-screen" class="overlay-screen">
         <h1>THE BACKROOMS</h1>
-        <p>Вы провалились сквозь реальность на Уровень 0.<br>Соберите <b>5 VHS-кассет</b> и избегайте монстра.</p>
-        <p style="color:#888; font-size: 13px; margin-top:15px;">
-            <b>Управление:</b><br>
-            W, A, S, D или Стрелки — Движение<br>
+        <p>Вы провалились в Закулисье.<br>Найдите <b>5 кассет</b> и избегайте монстра.</p>
+        <p style="color:#ffea78; font-size: 14px; margin-top:15px;">
+            <b>УПРАВЛЕНИЕ:</b><br>
+            W, A, S, D / Стрелки — Ходьба<br>
             SHIFT — Бег<br>
-            МЫШЬ — Оглядываться (Кликните по экрану для захвата мыши)
+            Клик по экрану — Включить обзор мышью
         </p>
-        <button class="btn" id="start-btn">ВОЙТИ В ЗАКУЛИСЬЕ</button>
+        <button class="btn" id="start-btn">НАЧАТЬ ИГРУ</button>
     </div>
 
     <div id="gameover-screen" class="overlay-screen" style="display: none;">
-        <h1 style="color: #ff3333; text-shadow: 0 0 10px #ff0000;">ОНО НАШЛО ВАС</h1>
-        <p>Вы стали частью Закулисья...</p>
+        <h1 style="color: #ff3333; text-shadow: 0 0 10px #ff0000;">МЕШОК ПОЙМАЛ ВАС</h1>
         <button class="btn" onclick="location.reload()">ПОПРОБОВАТЬ СНОВА</button>
     </div>
 
     <div id="win-screen" class="overlay-screen" style="display: none;">
         <h1 style="color: #78ff78; text-shadow: 0 0 10px #00ff00;">ВЫ ВЫБРАЛИСЬ!</h1>
-        <p>Все 5 кассет собраны. Вы нашли выход из Закулисья!</p>
         <button class="btn" onclick="location.reload()">ИГРАТЬ СНОВА</button>
     </div>
 
     <div id="jumpscare-overlay">
-        <h1 style="font-size: 120px; color: #000;">👀</h1>
+        <h1 style="font-size: 120px; color: #000;">👁️👄👁️</h1>
     </div>
 
     <div id="game-container"></div>
 
     <script>
-        // --- 1. ГЕНЕРАЦИЯ ТЕКСТУР В ВЫСОКОМ КАЧЕСТВЕ ---
-        function createTexture(type) {
+        // --- 1. ТЕКСТУРЫ ВЫСОКОЙ ДЕТАЛИЗАЦИИ ---
+        function createHDTexture(type) {
             const canvas = document.createElement('canvas');
             canvas.width = 1024; canvas.height = 1024;
             const ctx = canvas.getContext('2d');
 
             if (type === 'wall') {
-                ctx.fillStyle = '#b39b3b'; ctx.fillRect(0, 0, 1024, 1024);
-                ctx.strokeStyle = '#9c842e'; ctx.lineWidth = 3;
-                for (let x = 0; x < 1024; x += 32) {
-                    for (let y = 0; y < 1024; y += 32) {
-                        ctx.beginPath();
-                        ctx.moveTo(x + 16, y); ctx.lineTo(x + 32, y + 16);
-                        ctx.lineTo(x + 16, y + 32); ctx.lineTo(x, y + 16);
-                        ctx.closePath(); ctx.stroke();
+                ctx.fillStyle = '#baa344'; ctx.fillRect(0, 0, 1024, 1024);
+                // Узор обоев
+                ctx.strokeStyle = '#9e8832'; ctx.lineWidth = 4;
+                for (let x = 0; x < 1024; x += 64) {
+                    for (let y = 0; y < 1024; y += 64) {
+                        ctx.strokeRect(x+8, y+8, 48, 48);
                     }
                 }
-                for (let i = 0; i < 25; i++) {
+                // Пятна и сырость
+                for (let i = 0; i < 40; i++) {
                     const gx = Math.random() * 1024, gy = Math.random() * 1024;
-                    const grad = ctx.createRadialGradient(gx, gy, 5, gx, gy, 120);
-                    grad.addColorStop(0, 'rgba(35, 25, 5, 0.4)');
+                    const grad = ctx.createRadialGradient(gx, gy, 10, gx, gy, 150);
+                    grad.addColorStop(0, 'rgba(40, 30, 5, 0.5)');
                     grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
                     ctx.fillStyle = grad;
-                    ctx.beginPath(); ctx.arc(gx, gy, 120, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(gx, gy, 150, 0, Math.PI * 2); ctx.fill();
                 }
             } else if (type === 'floor') {
-                ctx.fillStyle = '#3a3320'; ctx.fillRect(0, 0, 1024, 1024);
-                for (let i = 0; i < 35; i++) {
-                    const gx = Math.random() * 1024, gy = Math.random() * 1024;
-                    const grad = ctx.createRadialGradient(gx, gy, 10, gx, gy, 140);
-                    grad.addColorStop(0, 'rgba(15, 12, 5, 0.75)');
-                    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-                    ctx.fillStyle = grad;
-                    ctx.beginPath(); ctx.arc(gx, gy, 140, 0, Math.PI * 2); ctx.fill();
-                }
-                for (let i = 0; i < 50000; i++) {
-                    ctx.fillStyle = Math.random() > 0.5 ? '#2b2516' : '#4a422d';
+                ctx.fillStyle = '#3d3522'; ctx.fillRect(0, 0, 1024, 1024);
+                for (let i = 0; i < 80000; i++) {
+                    ctx.fillStyle = Math.random() > 0.5 ? '#2b2414' : '#4d432b';
                     ctx.fillRect(Math.random() * 1024, Math.random() * 1024, 2, 2);
                 }
             } else if (type === 'ceiling') {
-                ctx.fillStyle = '#b8b495'; ctx.fillRect(0, 0, 1024, 1024);
-                ctx.strokeStyle = '#5c5943'; ctx.lineWidth = 8;
+                ctx.fillStyle = '#c7c29e'; ctx.fillRect(0, 0, 1024, 1024);
+                ctx.strokeStyle = '#6b664d'; ctx.lineWidth = 10;
                 for (let i = 0; i <= 1024; i += 256) {
                     ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 1024); ctx.stroke();
                     ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(1024, i); ctx.stroke();
@@ -179,7 +169,7 @@
                 osc.type = 'sine';
                 osc.frequency.setValueAtTime(440, audioCtx.currentTime);
                 osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.3);
-                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
                 gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
                 osc.start(); osc.stop(audioCtx.currentTime + 0.3);
             } else if (type === 'scare') {
@@ -192,20 +182,19 @@
             }
         }
 
-        // --- 3. СЦЕНА И КАМЕРА ---
+        // --- 3. СЦЕНА ---
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x11100b);
         scene.fog = new THREE.FogExp2(0x11100b, 0.08);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.rotation.order = 'YXZ'; // Правильный порядок вращения для FPS
+        camera.rotation.order = 'YXZ';
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
         document.getElementById('game-container').appendChild(renderer.domElement);
 
-        // --- 4. КАРТА ЛАБИРИНТА ---
+        // --- 4. КАРТА ---
         const mapSize = 15;
         const map = [
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
@@ -225,14 +214,14 @@
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
         ];
 
-        const wallTexture = createTexture('wall'); wallTexture.repeat.set(1, 1);
-        const wallMat = new THREE.MeshStandardMaterial({ map: wallTexture, roughness: 0.85 });
+        const wallTex = createHDTexture('wall'); wallTex.repeat.set(1, 1);
+        const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.8 });
 
-        const floorTexture = createTexture('floor'); floorTexture.repeat.set(8, 8);
-        const floorMat = new THREE.MeshStandardMaterial({ map: floorTexture, roughness: 0.95 });
+        const floorTex = createHDTexture('floor'); floorTex.repeat.set(8, 8);
+        const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.9 });
 
-        const ceilTexture = createTexture('ceiling'); ceilTexture.repeat.set(8, 8);
-        const ceilMat = new THREE.MeshStandardMaterial({ map: ceilTexture, roughness: 0.6 });
+        const ceilTex = createHDTexture('ceiling'); ceilTex.repeat.set(8, 8);
+        const ceilMat = new THREE.MeshStandardMaterial({ map: ceilTex, roughness: 0.5 });
 
         const blockGeo = new THREE.BoxGeometry(4, 4, 4);
         const walls = [];
@@ -259,7 +248,7 @@
         // Лампы
         const lightPositions = [[4, 4], [20, 20], [40, 10], [10, 40], [50, 50]];
         lightPositions.forEach(pos => {
-            const light = new THREE.PointLight(0xfffaed, 0.8, 18);
+            const light = new THREE.PointLight(0xfffaed, 0.9, 18);
             light.position.set(pos[0], 3.8, pos[1]);
             scene.add(light);
             const lamp = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 0.6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
@@ -267,8 +256,7 @@
             scene.add(lamp);
         });
 
-        // Фонарик игрока
-        const flashlight = new THREE.SpotLight(0xfff5d0, 2.5, 25, Math.PI / 4.5, 0.4, 1);
+        const flashlight = new THREE.SpotLight(0xfff5d0, 3.0, 25, Math.PI / 4, 0.4, 1);
         scene.add(flashlight);
         scene.add(flashlight.target);
 
@@ -276,13 +264,13 @@
         const tapes = [];
         let tapesCollected = 0;
         const tapeGeo = new THREE.BoxGeometry(0.4, 0.1, 0.25);
-        const tapeMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3 });
+        const tapeMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
 
         const tapeCoords = [[4, 4], [52, 4], [4, 52], [52, 52], [28, 28]];
         tapeCoords.forEach(coord => {
             const tape = new THREE.Mesh(tapeGeo, tapeMat);
             tape.position.set(coord[0], 0.1, coord[1]);
-            const light = new THREE.PointLight(0xffea78, 0.5, 3);
+            const light = new THREE.PointLight(0xffea78, 0.6, 4);
             light.position.set(coord[0], 0.3, coord[1]);
             scene.add(light); scene.add(tape);
             tapes.push({ mesh: tape, light: light, collected: false });
@@ -295,7 +283,7 @@
         monsterGroup.add(body);
 
         const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-        const eyeGeo = new THREE.SphereGeometry(0.05, 8, 8);
+        const eyeGeo = new THREE.SphereGeometry(0.06, 8, 8);
         const eye1 = new THREE.Mesh(eyeGeo, eyeMat); eye1.position.set(-0.1, 2.4, 0.25);
         const eye2 = new THREE.Mesh(eyeGeo, eyeMat); eye2.position.set(0.1, 2.4, 0.25);
         monsterGroup.add(eye1); monsterGroup.add(eye2);
@@ -303,17 +291,26 @@
         monsterGroup.position.set(52, 0, 52);
         scene.add(monsterGroup);
 
-        // --- 7. СОБСТВЕННАЯ СИСТЕМА УПРАВЛЕНИЯИ ДВИЖЕНИЯ ---
+        // --- 7. БРОНЕБОЙНАЯ СИСТЕМА УПРАВЛЕНИЯ ---
         camera.position.set(6, 1.6, 6);
         let yaw = 0, pitch = 0;
         let gameActive = false;
         let stamina = 100;
 
-        const keys = {};
-        window.addEventListener('keydown', (e) => { keys[e.code] = true; });
-        window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+        // Фиксация нажатых клавиш по кодам и символам (для русской/английской раскладок)
+        const pressedKeys = {};
 
-        // Вращение мышью
+        window.addEventListener('keydown', (e) => {
+            pressedKeys[e.code] = true;
+            pressedKeys[e.key.toLowerCase()] = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            pressedKeys[e.code] = false;
+            pressedKeys[e.key.toLowerCase()] = false;
+        });
+
+        // Движение мыши
         document.addEventListener('mousemove', (e) => {
             if (!gameActive) return;
             if (document.pointerLockElement === document.body) {
@@ -325,7 +322,6 @@
             }
         });
 
-        // Клик по экрану включат захват мыши
         document.body.addEventListener('click', () => {
             if (gameActive && document.pointerLockElement !== document.body) {
                 document.body.requestPointerLock();
@@ -339,7 +335,6 @@
             document.body.requestPointerLock();
         });
 
-        // Коллизии со стенами
         function checkCollision(pos) {
             const r = 0.45;
             for (let wall of walls) {
@@ -350,7 +345,7 @@
             return false;
         }
 
-        // --- 8. ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ ---
+        // --- 8. ИГРОВОЙ ЦИКЛ ---
         const clock = new THREE.Clock();
 
         function animate() {
@@ -359,36 +354,40 @@
 
             const delta = clock.getDelta();
 
-            // Скорость и Стамина
-            const isSprinting = (keys['ShiftLeft'] || keys['ShiftRight']) && stamina > 0;
+            // Проверка кнопок движения (работает на W/A/S/D, Стрелках и русской Ц/Ф/Ы/В)
+            const w = pressedKeys['KeyW'] || pressedKeys['w'] || pressedKeys['ц'] || pressedKeys['ArrowUp'];
+            const s = pressedKeys['KeyS'] || pressedKeys['s'] || pressedKeys['ы'] || pressedKeys['ArrowDown'];
+            const a = pressedKeys['KeyA'] || pressedKeys['a'] || pressedKeys['ф'] || pressedKeys['ArrowLeft'];
+            const d = pressedKeys['KeyD'] || pressedKeys['d'] || pressedKeys['в'] || pressedKeys['ArrowRight'];
+            const shift = pressedKeys['ShiftLeft'] || pressedKeys['ShiftRight'];
+
+            const isSprinting = shift && stamina > 0;
             const speed = isSprinting ? 6.5 : 3.5;
-            if (isSprinting && (keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD'] || keys['ArrowUp'] || keys['ArrowDown'] || keys['ArrowLeft'] || keys['ArrowRight'])) {
+
+            if (isSprinting && (w || s || a || d)) {
                 stamina -= 35 * delta;
             } else if (stamina < 100) {
                 stamina += 15 * delta;
             }
             document.getElementById('stamina-bar').style.width = `${Math.max(0, stamina)}%`;
 
-            // Расчет направления движения от угла камеры (yaw)
             let moveForward = 0;
             let moveSide = 0;
 
-            if (keys['KeyW'] || keys['ArrowUp']) moveForward += 1;
-            if (keys['KeyS'] || keys['ArrowDown']) moveForward -= 1;
-            if (keys['KeyD'] || keys['ArrowRight']) moveSide += 1;
-            if (keys['KeyA'] || keys['ArrowLeft']) moveSide -= 1;
+            if (w) moveForward += 1;
+            if (s) moveForward -= 1;
+            if (d) moveSide += 1;
+            if (a) moveSide -= 1;
 
             if (moveForward !== 0 || moveSide !== 0) {
                 const sin = Math.sin(yaw);
                 const cos = Math.cos(yaw);
 
-                // Вектор вперед/назад и влево/вправо
                 const dx = (-sin * moveForward + cos * moveSide) * speed * delta;
                 const dz = (-cos * moveForward - sin * moveSide) * speed * delta;
 
                 const oldPos = camera.position.clone();
-                
-                // Проверка движения по X и Z отдельно (чтобы скользить вдоль стен)
+
                 camera.position.x += dx;
                 if (checkCollision(camera.position)) camera.position.x = oldPos.x;
 
@@ -396,7 +395,6 @@
                 if (checkCollision(camera.position)) camera.position.z = oldPos.z;
             }
 
-            // Направление фонарика
             flashlight.position.copy(camera.position);
             const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
             flashlight.target.position.copy(camera.position).add(forward);
@@ -426,7 +424,6 @@
                 monsterGroup.lookAt(camera.position.x, monsterGroup.position.y, camera.position.z);
             }
 
-            // Поражение
             if (distToMonster < 1.2) {
                 gameActive = false;
                 playSound('scare');
